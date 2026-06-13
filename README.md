@@ -42,23 +42,22 @@ dv examples/expenses.csv schema
 dv examples/expenses.csv summary
 dv examples/expenses.csv query "SELECT category, sum(amount) AS total FROM data GROUP BY category ORDER BY total DESC"
 dv examples/expenses.csv bar category
-dv examples/tasks.csv timeline --start start --end end --label task
+dv examples/tasks.csv gantt --start start --end end --label task --status status
+dv examples/money.csv money-report
 ```
 
 ## Commands
 
 ### Inspect and query
 
-- `schema`
-- `head`
-- `summary`
-- `describe`
-- `missing`
-- `table`
-- `query`
-- `report`
-
-Examples:
+- `schema` — column types, missing counts, unique counts
+- `head` — first N rows as a table
+- `summary` — row count, column types, missing, duplicates, numeric stats
+- `describe` — numeric column statistics (min, max, mean, median, std)
+- `missing` — missing value counts per column
+- `table` — filtered, sorted, paginated table view
+- `query` — run raw SQL (table name is `data`)
+- `report` — full auto-report: schema + summary + charts
 
 ```bash
 dv examples/expenses.csv schema
@@ -69,11 +68,9 @@ dv examples/expenses.csv query "SELECT * FROM data LIMIT 20"
 
 ### Aggregation
 
-- `group-by`
-- `pivot`
-- `top`
-
-Examples:
+- `group-by` — group by a column with count/sum/avg aggregations
+- `pivot` — cross-tab two columns
+- `top` — top N values by a numeric column
 
 ```bash
 dv examples/expenses.csv group-by category --sum amount
@@ -84,20 +81,18 @@ dv examples/expenses.csv top category --by amount
 
 ### Charts and visuals
 
-- `bar`
-- `hist`
-- `spark`
-- `scatter`
-- `composition`
-- `box`
-- `outliers`
-- `heatmap`
-- `timeline`
-- `gantt`
-- `tree`
-- `calendar`
-
-Examples:
+- `bar` — horizontal bar chart for a categorical column
+- `hist` — histogram of a numeric column
+- `spark` — sparkline of a numeric column over time
+- `scatter` — ASCII scatter plot of two numeric columns
+- `composition` — stacked composition chart (category × period)
+- `box` — box plot (min/Q1/median/Q3/max)
+- `outliers` — flag statistical outliers in a numeric column
+- `heatmap` — density grid (two categorical columns)
+- `timeline` — compact ASCII event timeline
+- `gantt` — Gantt chart with status, progress, milestones
+- `tree` — hierarchical tree from a path column
+- `calendar` — monthly calendar heatmap
 
 ```bash
 dv examples/expenses.csv bar category
@@ -109,28 +104,60 @@ dv examples/books.csv tree --path genre/subgenre/title
 
 ### Time analysis
 
-- `time-summary`
-- `time`
-- `by-hour`
-- `streak`
-- `gaps`
-- `compare-periods`
-
-Examples:
+- `time-summary` — date range, gaps, most active period
+- `time` — aggregate by hour/day/week/month/year with optional sum/count/avg
+- `by-hour` — count distribution by hour of day
+- `streak` — longest consecutive active days
+- `gaps` — gaps between events
+- `compare-periods` — side-by-side period comparison table
+- `weekmap` — week × weekday heatmap grid
+- `rolling` — values with rolling average and trend arrows
+- `cumulative` — running total with inline progress bars
+- `duration` — distribution of durations between two date columns
+- `before-after` — compare stats before vs after a cutoff date
 
 ```bash
 dv examples/expenses.csv time-summary --date date
 dv examples/expenses.csv time --date date --by month --sum amount
 dv examples/expenses.csv by-hour --date date
+dv examples/expenses.csv weekmap --date date --value amount
+dv examples/expenses.csv rolling --date date --value amount --window 7
+dv examples/expenses.csv cumulative --date date --value amount
+dv examples/tasks.csv duration --start start --end end
+dv examples/expenses.csv before-after --date date --value amount --cutoff 2026-04-01
 dv examples/expenses.csv compare-periods --date date --value amount --period month
+```
+
+### Money analysis
+
+Designed for files with `date`, `type` (income/expense), `category`, and `amount` columns.
+All commands degrade gracefully when the `type` column is absent.
+
+- `money-summary` — income, expenses, saved, savings rate, cashflow status
+- `expenses-by` — bar chart of expenses by any column (default: category)
+- `income-expense` — monthly income vs expense table with saved and rate
+- `largest` — top N transactions by amount
+- `budget` — actual vs budgeted per category (reads from `.dv.yml`)
+- `burn-rate` — daily pace vs budget with projected end-of-month spend
+- `savings-rate` — savings rate trend table with sparkline
+- `subscriptions` — auto-detect recurring payments (appear in 2+ months)
+- `money-report` — full report: summary + category bars + budget + largest + cashflow
+
+```bash
+dv examples/money.csv money-summary
+dv examples/money.csv expenses-by category
+dv examples/money.csv income-expense
+dv examples/money.csv largest --n 10
+dv examples/money.csv burn-rate --month 2026-06 --budget 1500
+dv examples/money.csv savings-rate
+dv examples/money.csv subscriptions --min-months 2
+dv examples/money.csv money-report --month 2026-06
 ```
 
 ### Compare and export
 
-- `diff`
-- `export-md`
-
-Examples:
+- `diff` — compare two files by a key column
+- `export-md` — export summary + charts to a Markdown file
 
 ```bash
 dv examples/expenses.csv diff examples/study.csv --key date
@@ -146,7 +173,14 @@ dv examples/expenses.csv export-md report.md
 ![group-by](docs/screenshots/groupby.svg)
 ![bar](docs/screenshots/bar.svg)
 ![hist](docs/screenshots/hist.svg)
+![gantt](docs/screenshots/gantt.svg)
 ![timeline](docs/screenshots/timeline.svg)
+![weekmap](docs/screenshots/weekmap.svg)
+![money-summary](docs/screenshots/money_summary.svg)
+![expenses-by](docs/screenshots/expenses_by.svg)
+![income-expense](docs/screenshots/income_expense.svg)
+![burn-rate](docs/screenshots/burn_rate.svg)
+![subscriptions](docs/screenshots/subscriptions.svg)
 
 ## Supported formats
 

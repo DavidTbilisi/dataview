@@ -1,0 +1,45 @@
+student_id,student,assignment,score,max_score,topic,date
+1,Ana,Quiz 1,80,100,variables,2026-05-10
+1,Ana,HW 1,90,100,loops,2026-05-17
+1,Ana,Quiz 2,85,100,loops,2026-05-24
+1,Ana,Midterm,78,100,functions,2026-06-01
+1,Ana,HW 2,92,100,functions,2026-06-07
+2,Giorgi,Quiz 1,50,100,variables,2026-05-10
+2,Giorgi,HW 1,65,100,loops,2026-05-17
+2,Giorgi,Quiz 2,58,100,loops,2026-05-24
+2,Giorgi,Midterm,62,100,functions,2026-06-01
+3,Nino,Quiz 1,95,100,variables,2026-05-10
+3,Nino,HW 1,88,100,loops,2026-05-17
+3,Nino,Quiz 2,91,100,loops,2026-05-24
+3,Nino,Midterm,94,100,functions,2026-06-01
+3,Nino,HW 2,97,100,functions,2026-06-07
+4,Mariam,Quiz 1,70,100,variables,2026-05-10
+4,Mariam,Quiz 2,75,100,loops,2026-05-24
+4,Mariam,Midterm,68,100,functions,2026-06-01
+5,Luka,Quiz 1,55,100,variables,2026-05-10
+5,Luka,HW 1,60,100,loops,2026-05-17
+5,Luka,Quiz 2,52,100,loops,2026-05-24
+5,Luka,Midterm,48,100,functions,2026-06-01
+5,Luka,HW 2,55,100,functions,2026-06-07
+6,Nika,Quiz 1,74,100,variables,2026-05-10
+6,Nika,HW 1,78,100,loops,2026-05-17
+6,Nika,Quiz 2,70,100,loops,2026-05-24
+6,Nika,Midterm,65,100,functions,2026-06-01
+6,Nika,HW 2,72,100,functions,2026-06-07
+7,Dea,Quiz 1,88,100,variables,2026-05-10
+7,Dea,HW 1,92,100,loops,2026-05-17
+7,Dea,Quiz 2,85,100,loops,2026-05-24
+7,Dea,Midterm,90,100,functions,2026-06-01
+7,Dea,HW 2,94,100,functions,2026-06-07
+8,Irakli,Quiz 1,42,100,variables,2026-05-10
+8,Irakli,HW 1,50,100,loops,2026-05-17
+8,Irakli,Quiz 2,38,100,loops,2026-05-24
+9,Salome,Quiz 1,82,100,variables,2026-05-10
+9,Salome,HW 1,85,100,loops,2026-05-17
+9,Salome,Quiz 2,79,100,loops,2026-05-24
+9,Salome,Midterm,88,100,functions,2026-06-01
+9,Salome,HW 2,86,100,functions,2026-06-07
+10,Beka,Quiz 1,66,100,variables,2026-05-10
+10,Beka,HW 1,72,100,loops,2026-05-17
+10,Beka,Quiz 2,61,100,loops,2026-05-24
+10,Beka,Midterm,58,100,functions,2026-06-01

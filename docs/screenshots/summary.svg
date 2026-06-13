@@ -1,4 +1,4 @@
-<svg class="rich-terminal" viewBox="0 0 994 464.79999999999995" xmlns="http://www.w3.org/2000/svg">
+<svg class="rich-terminal" viewBox="0 0 994 489.2" xmlns="http://www.w3.org/2000/svg">
     <!-- Generated with Rich https://www.textualize.io -->
     <style>
 
@@ -19,107 +19,111 @@
         font-weight: 700;
     }
 
-    .terminal-1043009368-matrix {
+    .terminal-310523363-matrix {
         font-family: Fira Code, monospace;
         font-size: 20px;
         line-height: 24.4px;
         font-variant-east-asian: full-width;
     }
 
-    .terminal-1043009368-title {
+    .terminal-310523363-title {
         font-size: 18px;
         font-weight: bold;
         font-family: arial;
     }
 
-    .terminal-1043009368-r1 { fill: #c5c8c6 }
-.terminal-1043009368-r2 { fill: #68a0b3;font-weight: bold }
-.terminal-1043009368-r3 { fill: #868887 }
-.terminal-1043009368-r4 { fill: #c5c8c6;font-weight: bold }
-.terminal-1043009368-r5 { fill: #d0b344 }
+    .terminal-310523363-r1 { fill: #c5c8c6 }
+.terminal-310523363-r2 { fill: #68a0b3;font-weight: bold }
+.terminal-310523363-r3 { fill: #868887 }
+.terminal-310523363-r4 { fill: #c5c8c6;font-weight: bold }
+.terminal-310523363-r5 { fill: #d0b344 }
     </style>
 
     <defs>
-    <clipPath id="terminal-1043009368-clip-terminal">
-      <rect x="0" y="0" width="975.0" height="413.79999999999995" />
+    <clipPath id="terminal-310523363-clip-terminal">
+      <rect x="0" y="0" width="975.0" height="438.2" />
     </clipPath>
-    <clipPath id="terminal-1043009368-line-0">
+    <clipPath id="terminal-310523363-line-0">
     <rect x="0" y="1.5" width="976" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-1043009368-line-1">
+<clipPath id="terminal-310523363-line-1">
     <rect x="0" y="25.9" width="976" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-1043009368-line-2">
+<clipPath id="terminal-310523363-line-2">
     <rect x="0" y="50.3" width="976" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-1043009368-line-3">
+<clipPath id="terminal-310523363-line-3">
     <rect x="0" y="74.7" width="976" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-1043009368-line-4">
+<clipPath id="terminal-310523363-line-4">
     <rect x="0" y="99.1" width="976" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-1043009368-line-5">
+<clipPath id="terminal-310523363-line-5">
     <rect x="0" y="123.5" width="976" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-1043009368-line-6">
+<clipPath id="terminal-310523363-line-6">
     <rect x="0" y="147.9" width="976" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-1043009368-line-7">
+<clipPath id="terminal-310523363-line-7">
     <rect x="0" y="172.3" width="976" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-1043009368-line-8">
+<clipPath id="terminal-310523363-line-8">
     <rect x="0" y="196.7" width="976" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-1043009368-line-9">
+<clipPath id="terminal-310523363-line-9">
     <rect x="0" y="221.1" width="976" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-1043009368-line-10">
+<clipPath id="terminal-310523363-line-10">
     <rect x="0" y="245.5" width="976" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-1043009368-line-11">
+<clipPath id="terminal-310523363-line-11">
     <rect x="0" y="269.9" width="976" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-1043009368-line-12">
+<clipPath id="terminal-310523363-line-12">
     <rect x="0" y="294.3" width="976" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-1043009368-line-13">
+<clipPath id="terminal-310523363-line-13">
     <rect x="0" y="318.7" width="976" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-1043009368-line-14">
+<clipPath id="terminal-310523363-line-14">
     <rect x="0" y="343.1" width="976" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-1043009368-line-15">
+<clipPath id="terminal-310523363-line-15">
     <rect x="0" y="367.5" width="976" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-310523363-line-16">
+    <rect x="0" y="391.9" width="976" height="24.65"/>
             </clipPath>
     </defs>
 
-    <rect fill="#292929" stroke="rgba(255,255,255,0.35)" stroke-width="1" x="1" y="1" width="992" height="462.8" rx="8"/><text class="terminal-1043009368-title" fill="#c5c8c6" text-anchor="middle" x="496" y="27">dv&#160;summary</text>
+    <rect fill="#292929" stroke="rgba(255,255,255,0.35)" stroke-width="1" x="1" y="1" width="992" height="487.2" rx="8"/><text class="terminal-310523363-title" fill="#c5c8c6" text-anchor="middle" x="496" y="27">dv&#160;summary</text>
             <g transform="translate(26,22)">
             <circle cx="0" cy="0" r="7" fill="#ff5f57"/>
             <circle cx="22" cy="0" r="7" fill="#febc2e"/>
             <circle cx="44" cy="0" r="7" fill="#28c840"/>
             </g>
         
-    <g transform="translate(9, 41)" clip-path="url(#terminal-1043009368-clip-terminal)">
+    <g transform="translate(9, 41)" clip-path="url(#terminal-310523363-clip-terminal)">
     
-    <g class="terminal-1043009368-matrix">
-    <text class="terminal-1043009368-r1" x="976" y="20" textLength="12.2" clip-path="url(#terminal-1043009368-line-0)">
-</text><text class="terminal-1043009368-r2" x="0" y="44.4" textLength="85.4" clip-path="url(#terminal-1043009368-line-1)">summary</text><text class="terminal-1043009368-r3" x="109.8" y="44.4" textLength="146.4" clip-path="url(#terminal-1043009368-line-1)">expenses.csv</text><text class="terminal-1043009368-r3" x="268.4" y="44.4" textLength="707.6" clip-path="url(#terminal-1043009368-line-1)">──────────────────────────────────────────────────────────</text><text class="terminal-1043009368-r1" x="976" y="44.4" textLength="12.2" clip-path="url(#terminal-1043009368-line-1)">
-</text><text class="terminal-1043009368-r1" x="976" y="68.8" textLength="12.2" clip-path="url(#terminal-1043009368-line-2)">
-</text><text class="terminal-1043009368-r3" x="24.4" y="93.2" textLength="122" clip-path="url(#terminal-1043009368-line-3)">rows&#160;&#160;&#160;&#160;&#160;&#160;</text><text class="terminal-1043009368-r1" x="146.4" y="93.2" textLength="48.8" clip-path="url(#terminal-1043009368-line-3)">&#160;&#160;20</text><text class="terminal-1043009368-r1" x="976" y="93.2" textLength="12.2" clip-path="url(#terminal-1043009368-line-3)">
-</text><text class="terminal-1043009368-r3" x="24.4" y="117.6" textLength="122" clip-path="url(#terminal-1043009368-line-4)">columns&#160;&#160;&#160;</text><text class="terminal-1043009368-r1" x="146.4" y="117.6" textLength="36.6" clip-path="url(#terminal-1043009368-line-4)">&#160;&#160;5</text><text class="terminal-1043009368-r1" x="976" y="117.6" textLength="12.2" clip-path="url(#terminal-1043009368-line-4)">
-</text><text class="terminal-1043009368-r3" x="24.4" y="142" textLength="122" clip-path="url(#terminal-1043009368-line-5)">numeric&#160;&#160;&#160;</text><text class="terminal-1043009368-r1" x="146.4" y="142" textLength="97.6" clip-path="url(#terminal-1043009368-line-5)">&#160;&#160;amount</text><text class="terminal-1043009368-r1" x="976" y="142" textLength="12.2" clip-path="url(#terminal-1043009368-line-5)">
-</text><text class="terminal-1043009368-r3" x="24.4" y="166.4" textLength="122" clip-path="url(#terminal-1043009368-line-6)">text&#160;&#160;&#160;&#160;&#160;&#160;</text><text class="terminal-1043009368-r1" x="146.4" y="166.4" textLength="292.8" clip-path="url(#terminal-1043009368-line-6)">&#160;&#160;category,&#160;method,&#160;note</text><text class="terminal-1043009368-r1" x="976" y="166.4" textLength="12.2" clip-path="url(#terminal-1043009368-line-6)">
-</text><text class="terminal-1043009368-r3" x="24.4" y="190.8" textLength="122" clip-path="url(#terminal-1043009368-line-7)">dates&#160;&#160;&#160;&#160;&#160;</text><text class="terminal-1043009368-r1" x="146.4" y="190.8" textLength="73.2" clip-path="url(#terminal-1043009368-line-7)">&#160;&#160;date</text><text class="terminal-1043009368-r1" x="976" y="190.8" textLength="12.2" clip-path="url(#terminal-1043009368-line-7)">
-</text><text class="terminal-1043009368-r3" x="24.4" y="215.2" textLength="122" clip-path="url(#terminal-1043009368-line-8)">missing&#160;&#160;&#160;</text><text class="terminal-1043009368-r3" x="170.8" y="215.2" textLength="48.8" clip-path="url(#terminal-1043009368-line-8)">none</text><text class="terminal-1043009368-r1" x="976" y="215.2" textLength="12.2" clip-path="url(#terminal-1043009368-line-8)">
-</text><text class="terminal-1043009368-r3" x="24.4" y="239.6" textLength="122" clip-path="url(#terminal-1043009368-line-9)">duplicates</text><text class="terminal-1043009368-r3" x="170.8" y="239.6" textLength="48.8" clip-path="url(#terminal-1043009368-line-9)">none</text><text class="terminal-1043009368-r1" x="976" y="239.6" textLength="12.2" clip-path="url(#terminal-1043009368-line-9)">
-</text><text class="terminal-1043009368-r1" x="976" y="264" textLength="12.2" clip-path="url(#terminal-1043009368-line-10)">
-</text><text class="terminal-1043009368-r3" x="0" y="288.4" textLength="85.4" clip-path="url(#terminal-1043009368-line-11)">numeric</text><text class="terminal-1043009368-r3" x="97.6" y="288.4" textLength="878.4" clip-path="url(#terminal-1043009368-line-11)">────────────────────────────────────────────────────────────────────────</text><text class="terminal-1043009368-r1" x="976" y="288.4" textLength="12.2" clip-path="url(#terminal-1043009368-line-11)">
-</text><text class="terminal-1043009368-r1" x="976" y="312.8" textLength="12.2" clip-path="url(#terminal-1043009368-line-12)">
-</text><text class="terminal-1043009368-r3" x="12.2" y="337.2" textLength="73.2" clip-path="url(#terminal-1043009368-line-13)">column</text><text class="terminal-1043009368-r3" x="122" y="337.2" textLength="61" clip-path="url(#terminal-1043009368-line-13)">count</text><text class="terminal-1043009368-r3" x="219.6" y="337.2" textLength="36.6" clip-path="url(#terminal-1043009368-line-13)">min</text><text class="terminal-1043009368-r3" x="292.8" y="337.2" textLength="48.8" clip-path="url(#terminal-1043009368-line-13)">&#160;max</text><text class="terminal-1043009368-r3" x="378.2" y="337.2" textLength="61" clip-path="url(#terminal-1043009368-line-13)">&#160;mean</text><text class="terminal-1043009368-r3" x="475.8" y="337.2" textLength="73.2" clip-path="url(#terminal-1043009368-line-13)">median</text><text class="terminal-1043009368-r3" x="585.6" y="337.2" textLength="61" clip-path="url(#terminal-1043009368-line-13)">&#160;&#160;std</text><text class="terminal-1043009368-r1" x="976" y="337.2" textLength="12.2" clip-path="url(#terminal-1043009368-line-13)">
-</text><text class="terminal-1043009368-r1" x="0" y="361.6" textLength="658.8" clip-path="url(#terminal-1043009368-line-14)">──────────────────────────────────────────────────────</text><text class="terminal-1043009368-r1" x="976" y="361.6" textLength="12.2" clip-path="url(#terminal-1043009368-line-14)">
-</text><text class="terminal-1043009368-r4" x="12.2" y="386" textLength="73.2" clip-path="url(#terminal-1043009368-line-15)">amount</text><text class="terminal-1043009368-r3" x="122" y="386" textLength="61" clip-path="url(#terminal-1043009368-line-15)">&#160;&#160;&#160;20</text><text class="terminal-1043009368-r5" x="219.6" y="386" textLength="36.6" clip-path="url(#terminal-1043009368-line-15)">&#160;&#160;3</text><text class="terminal-1043009368-r5" x="292.8" y="386" textLength="48.8" clip-path="url(#terminal-1043009368-line-15)">62.1</text><text class="terminal-1043009368-r1" x="378.2" y="386" textLength="61" clip-path="url(#terminal-1043009368-line-15)">22.73</text><text class="terminal-1043009368-r1" x="475.8" y="386" textLength="73.2" clip-path="url(#terminal-1043009368-line-15)">&#160;16.70</text><text class="terminal-1043009368-r3" x="585.6" y="386" textLength="61" clip-path="url(#terminal-1043009368-line-15)">18.11</text><text class="terminal-1043009368-r1" x="976" y="386" textLength="12.2" clip-path="url(#terminal-1043009368-line-15)">
-</text><text class="terminal-1043009368-r1" x="976" y="410.4" textLength="12.2" clip-path="url(#terminal-1043009368-line-16)">
+    <g class="terminal-310523363-matrix">
+    <text class="terminal-310523363-r1" x="976" y="20" textLength="12.2" clip-path="url(#terminal-310523363-line-0)">
+</text><text class="terminal-310523363-r2" x="0" y="44.4" textLength="85.4" clip-path="url(#terminal-310523363-line-1)">summary</text><text class="terminal-310523363-r3" x="109.8" y="44.4" textLength="146.4" clip-path="url(#terminal-310523363-line-1)">expenses.csv</text><text class="terminal-310523363-r3" x="268.4" y="44.4" textLength="707.6" clip-path="url(#terminal-310523363-line-1)">──────────────────────────────────────────────────────────</text><text class="terminal-310523363-r1" x="976" y="44.4" textLength="12.2" clip-path="url(#terminal-310523363-line-1)">
+</text><text class="terminal-310523363-r1" x="976" y="68.8" textLength="12.2" clip-path="url(#terminal-310523363-line-2)">
+</text><text class="terminal-310523363-r3" x="24.4" y="93.2" textLength="122" clip-path="url(#terminal-310523363-line-3)">rows&#160;&#160;&#160;&#160;&#160;&#160;</text><text class="terminal-310523363-r1" x="146.4" y="93.2" textLength="48.8" clip-path="url(#terminal-310523363-line-3)">&#160;&#160;44</text><text class="terminal-310523363-r1" x="976" y="93.2" textLength="12.2" clip-path="url(#terminal-310523363-line-3)">
+</text><text class="terminal-310523363-r3" x="24.4" y="117.6" textLength="122" clip-path="url(#terminal-310523363-line-4)">columns&#160;&#160;&#160;</text><text class="terminal-310523363-r1" x="146.4" y="117.6" textLength="36.6" clip-path="url(#terminal-310523363-line-4)">&#160;&#160;5</text><text class="terminal-310523363-r1" x="976" y="117.6" textLength="12.2" clip-path="url(#terminal-310523363-line-4)">
+</text><text class="terminal-310523363-r3" x="24.4" y="142" textLength="122" clip-path="url(#terminal-310523363-line-5)">date&#160;range</text><text class="terminal-310523363-r1" x="146.4" y="142" textLength="305" clip-path="url(#terminal-310523363-line-5)">&#160;&#160;2026-01-03&#160;→&#160;2026-06-26</text><text class="terminal-310523363-r1" x="976" y="142" textLength="12.2" clip-path="url(#terminal-310523363-line-5)">
+</text><text class="terminal-310523363-r3" x="24.4" y="166.4" textLength="122" clip-path="url(#terminal-310523363-line-6)">numeric&#160;&#160;&#160;</text><text class="terminal-310523363-r1" x="146.4" y="166.4" textLength="97.6" clip-path="url(#terminal-310523363-line-6)">&#160;&#160;amount</text><text class="terminal-310523363-r1" x="976" y="166.4" textLength="12.2" clip-path="url(#terminal-310523363-line-6)">
+</text><text class="terminal-310523363-r3" x="24.4" y="190.8" textLength="122" clip-path="url(#terminal-310523363-line-7)">text&#160;&#160;&#160;&#160;&#160;&#160;</text><text class="terminal-310523363-r1" x="146.4" y="190.8" textLength="292.8" clip-path="url(#terminal-310523363-line-7)">&#160;&#160;category,&#160;method,&#160;note</text><text class="terminal-310523363-r1" x="976" y="190.8" textLength="12.2" clip-path="url(#terminal-310523363-line-7)">
+</text><text class="terminal-310523363-r3" x="24.4" y="215.2" textLength="122" clip-path="url(#terminal-310523363-line-8)">dates&#160;&#160;&#160;&#160;&#160;</text><text class="terminal-310523363-r1" x="146.4" y="215.2" textLength="73.2" clip-path="url(#terminal-310523363-line-8)">&#160;&#160;date</text><text class="terminal-310523363-r1" x="976" y="215.2" textLength="12.2" clip-path="url(#terminal-310523363-line-8)">
+</text><text class="terminal-310523363-r3" x="24.4" y="239.6" textLength="122" clip-path="url(#terminal-310523363-line-9)">missing&#160;&#160;&#160;</text><text class="terminal-310523363-r3" x="170.8" y="239.6" textLength="48.8" clip-path="url(#terminal-310523363-line-9)">none</text><text class="terminal-310523363-r1" x="976" y="239.6" textLength="12.2" clip-path="url(#terminal-310523363-line-9)">
+</text><text class="terminal-310523363-r3" x="24.4" y="264" textLength="122" clip-path="url(#terminal-310523363-line-10)">duplicates</text><text class="terminal-310523363-r3" x="170.8" y="264" textLength="48.8" clip-path="url(#terminal-310523363-line-10)">none</text><text class="terminal-310523363-r1" x="976" y="264" textLength="12.2" clip-path="url(#terminal-310523363-line-10)">
+</text><text class="terminal-310523363-r1" x="976" y="288.4" textLength="12.2" clip-path="url(#terminal-310523363-line-11)">
+</text><text class="terminal-310523363-r3" x="0" y="312.8" textLength="85.4" clip-path="url(#terminal-310523363-line-12)">numeric</text><text class="terminal-310523363-r3" x="97.6" y="312.8" textLength="878.4" clip-path="url(#terminal-310523363-line-12)">────────────────────────────────────────────────────────────────────────</text><text class="terminal-310523363-r1" x="976" y="312.8" textLength="12.2" clip-path="url(#terminal-310523363-line-12)">
+</text><text class="terminal-310523363-r1" x="976" y="337.2" textLength="12.2" clip-path="url(#terminal-310523363-line-13)">
+</text><text class="terminal-310523363-r3" x="12.2" y="361.6" textLength="73.2" clip-path="url(#terminal-310523363-line-14)">column</text><text class="terminal-310523363-r3" x="122" y="361.6" textLength="61" clip-path="url(#terminal-310523363-line-14)">count</text><text class="terminal-310523363-r3" x="219.6" y="361.6" textLength="36.6" clip-path="url(#terminal-310523363-line-14)">min</text><text class="terminal-310523363-r3" x="292.8" y="361.6" textLength="36.6" clip-path="url(#terminal-310523363-line-14)">max</text><text class="terminal-310523363-r3" x="366" y="361.6" textLength="73.2" clip-path="url(#terminal-310523363-line-14)">&#160;&#160;mean</text><text class="terminal-310523363-r3" x="475.8" y="361.6" textLength="73.2" clip-path="url(#terminal-310523363-line-14)">median</text><text class="terminal-310523363-r3" x="585.6" y="361.6" textLength="73.2" clip-path="url(#terminal-310523363-line-14)">&#160;&#160;&#160;std</text><text class="terminal-310523363-r1" x="976" y="361.6" textLength="12.2" clip-path="url(#terminal-310523363-line-14)">
+</text><text class="terminal-310523363-r1" x="0" y="386" textLength="671" clip-path="url(#terminal-310523363-line-15)">───────────────────────────────────────────────────────</text><text class="terminal-310523363-r1" x="976" y="386" textLength="12.2" clip-path="url(#terminal-310523363-line-15)">
+</text><text class="terminal-310523363-r4" x="12.2" y="410.4" textLength="73.2" clip-path="url(#terminal-310523363-line-16)">amount</text><text class="terminal-310523363-r3" x="122" y="410.4" textLength="61" clip-path="url(#terminal-310523363-line-16)">&#160;&#160;&#160;44</text><text class="terminal-310523363-r5" x="219.6" y="410.4" textLength="36.6" clip-path="url(#terminal-310523363-line-16)">&#160;25</text><text class="terminal-310523363-r5" x="292.8" y="410.4" textLength="36.6" clip-path="url(#terminal-310523363-line-16)">450</text><text class="terminal-310523363-r1" x="366" y="410.4" textLength="73.2" clip-path="url(#terminal-310523363-line-16)">152.28</text><text class="terminal-310523363-r1" x="475.8" y="410.4" textLength="73.2" clip-path="url(#terminal-310523363-line-16)">150.00</text><text class="terminal-310523363-r3" x="585.6" y="410.4" textLength="73.2" clip-path="url(#terminal-310523363-line-16)">105.19</text><text class="terminal-310523363-r1" x="976" y="410.4" textLength="12.2" clip-path="url(#terminal-310523363-line-16)">
+</text><text class="terminal-310523363-r1" x="976" y="434.8" textLength="12.2" clip-path="url(#terminal-310523363-line-17)">
 </text>
     </g>
     </g>

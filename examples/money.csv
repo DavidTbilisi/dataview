@@ -1,0 +1,56 @@
+date,type,category,subcategory,amount,account,method,note
+2026-06-01,expense,rent,apartment,350.00,bank,transfer,monthly rent
+2026-06-01,income,salary,main,2900.00,bank,transfer,monthly salary
+2026-06-02,expense,food,groceries,32.50,cash,cash,supermarket
+2026-06-03,expense,transport,bus,3.00,cash,cash,bus ticket
+2026-06-04,expense,software,subscription,15.00,card,card,tool subscription
+2026-06-05,expense,study,books,28.00,card,card,python book
+2026-06-07,expense,food,restaurant,18.50,card,card,lunch
+2026-06-08,expense,food,groceries,45.00,cash,cash,weekly groceries
+2026-06-09,expense,transport,fuel,40.00,card,card,fuel
+2026-06-10,expense,software,subscription,8.00,card,card,hosting
+2026-06-11,expense,food,coffee,5.50,cash,cash,coffee
+2026-06-12,expense,health,pharmacy,14.00,cash,cash,medicine
+2026-06-13,expense,food,groceries,38.00,cash,cash,supermarket
+2026-06-14,expense,study,course,70.00,card,card,online course
+2026-06-15,expense,food,restaurant,22.00,card,card,dinner
+2026-06-16,expense,transport,bus,3.00,cash,cash,bus ticket
+2026-06-17,expense,software,subscription,12.99,card,card,streaming
+2026-06-18,expense,food,groceries,29.00,cash,cash,market
+2026-06-19,expense,transport,fuel,35.00,card,card,fuel
+2026-06-20,expense,food,coffee,5.50,cash,cash,coffee
+2026-06-21,expense,health,gym,40.00,card,card,gym membership
+2026-06-22,expense,food,groceries,42.00,cash,cash,supermarket
+2026-06-23,expense,software,license,50.00,card,card,annual license
+2026-06-24,expense,food,restaurant,16.00,card,card,lunch
+2026-06-25,expense,study,books,22.00,card,card,textbook
+2026-06-26,expense,transport,bus,3.00,cash,cash,bus ticket
+2026-06-27,expense,food,groceries,31.00,cash,cash,supermarket
+2026-06-28,expense,food,coffee,5.50,cash,cash,coffee
+2026-06-29,expense,health,pharmacy,8.50,cash,cash,vitamins
+2026-06-30,expense,food,restaurant,24.00,card,card,dinner
+2026-05-01,expense,rent,apartment,350.00,bank,transfer,monthly rent
+2026-05-01,income,salary,main,2700.00,bank,transfer,monthly salary
+2026-05-03,expense,food,groceries,30.00,cash,cash,supermarket
+2026-05-05,expense,software,subscription,15.00,card,card,tool subscription
+2026-05-07,expense,transport,bus,12.00,cash,cash,weekly transport
+2026-05-10,expense,software,subscription,8.00,card,card,hosting
+2026-05-12,expense,food,restaurant,20.00,card,card,lunch
+2026-05-15,expense,study,course,50.00,card,card,workshop
+2026-05-17,expense,software,subscription,12.99,card,card,streaming
+2026-05-20,expense,food,groceries,38.00,cash,cash,supermarket
+2026-05-22,expense,health,gym,40.00,card,card,gym membership
+2026-05-25,expense,food,groceries,32.00,cash,cash,market
+2026-05-28,expense,transport,fuel,38.00,card,card,fuel
+2026-04-01,expense,rent,apartment,350.00,bank,transfer,monthly rent
+2026-04-01,income,salary,main,2700.00,bank,transfer,monthly salary
+2026-04-05,expense,software,subscription,15.00,card,card,tool subscription
+2026-04-08,expense,food,groceries,35.00,cash,cash,supermarket
+2026-04-10,expense,software,subscription,8.00,card,card,hosting
+2026-04-12,expense,food,restaurant,18.00,card,card,lunch
+2026-04-15,expense,study,books,45.00,card,card,books
+2026-04-17,expense,software,subscription,12.99,card,card,streaming
+2026-04-20,expense,food,groceries,28.00,cash,cash,supermarket
+2026-04-22,expense,health,gym,40.00,card,card,gym membership
+2026-04-25,expense,food,groceries,31.00,cash,cash,market
+2026-04-28,expense,transport,fuel,36.00,card,card,fuel

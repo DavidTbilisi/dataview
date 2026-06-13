@@ -23,6 +23,20 @@ from dv.render.box import render_box
 from dv.render.diff import render_diff
 from dv.render.time_views import (
     render_time_summary, render_streak, render_gaps, render_compare_periods,
+    render_weekmap, render_rolling, render_cumulative,
+    render_duration_summary, render_before_after,
+    render_countdown, render_sessions,
+)
+from dv.render.money import (
+    render_money_summary, render_expenses_by, render_income_expense,
+    render_budget, render_burn_rate, render_savings_rate,
+    render_subscriptions, render_money_report,
+    render_drill, render_spend_by_weekday, render_remaining,
+    render_note_analysis, render_forecast,
+)
+from dv.render.teacher import (
+    render_teacher_summary, render_gradebook, render_at_risk,
+    render_score_distribution, render_missing_work,
 )
 
 app = typer.Typer(
@@ -698,3 +712,750 @@ def report():
     # Missing values (if any)
     if stats.missing_total:
         render_missing(schema_info)
+
+
+# ─── Time (additional) ────────────────────────────────────────────────────────
+
+@app.command()
+def weekmap(
+    date_col:  str = typer.Option(..., "--date",  help="Date column"),
+    value_col: Optional[str] = typer.Option(None, "--value", help="Value column (default: count)"),
+):
+    """Show a week × weekday grid heatmap."""
+    ds     = _ds()
+    cols   = f'"{date_col}"' + (f', "{value_col}"' if value_col else "")
+    result = run_query(ds, f"SELECT {cols} FROM data WHERE \"{date_col}\" IS NOT NULL")
+    render_weekmap(result.rows, date_col=date_col, value_col=value_col,
+                   title=f"{value_col or 'activity'} weekmap")
+
+
+@app.command()
+def rolling(
+    date_col:  str = typer.Option(..., "--date",  help="Date column"),
+    value_col: str = typer.Option(..., "--value", help="Numeric value column"),
+    by:        str = typer.Option("month", "--by", help="day|week|month|year"),
+    window:    int = typer.Option(3,   "--window", help="Rolling window size"),
+):
+    """Show values with rolling average overlay."""
+    ds = _ds()
+    if by == "month":
+        p_expr = f"strftime(\"{date_col}\"::DATE, '%Y-%m')"
+    elif by == "year":
+        p_expr = f"CAST(EXTRACT(year FROM \"{date_col}\") AS INTEGER)"
+    elif by == "week":
+        p_expr = f"strftime(\"{date_col}\"::DATE, '%Y-W%W')"
+    else:
+        p_expr = f"\"{date_col}\"::DATE"
+    sql = f"""
+        SELECT {p_expr} AS period, sum("{value_col}") AS total
+        FROM data WHERE "{date_col}" IS NOT NULL
+        GROUP BY {p_expr} ORDER BY {p_expr}
+    """
+    result = run_query(ds, sql)
+    items  = [(str(r["period"]), float(r["total"])) for r in result.rows]
+    render_rolling(items, window=window, title=f"{value_col} by {by}")
+
+
+@app.command()
+def cumulative(
+    date_col:  str = typer.Option(..., "--date",  help="Date column"),
+    value_col: str = typer.Option(..., "--value", help="Numeric value column"),
+    by:        str = typer.Option("month", "--by", help="day|week|month|year"),
+):
+    """Show cumulative running total over time."""
+    ds = _ds()
+    if by == "month":
+        p_expr = f"strftime(\"{date_col}\"::DATE, '%Y-%m')"
+    elif by == "year":
+        p_expr = f"CAST(EXTRACT(year FROM \"{date_col}\") AS INTEGER)"
+    elif by == "week":
+        p_expr = f"strftime(\"{date_col}\"::DATE, '%Y-W%W')"
+    else:
+        p_expr = f"\"{date_col}\"::DATE"
+    sql = f"""
+        SELECT {p_expr} AS period, sum("{value_col}") AS total
+        FROM data WHERE "{date_col}" IS NOT NULL
+        GROUP BY {p_expr} ORDER BY {p_expr}
+    """
+    result = run_query(ds, sql)
+    items  = [(str(r["period"]), float(r["total"])) for r in result.rows]
+    render_cumulative(items, title=f"cumulative {value_col}")
+
+
+@app.command()
+def duration(
+    start: str = typer.Option(..., "--start", help="Start date column"),
+    end:   str = typer.Option(..., "--end",   help="End date column"),
+):
+    """Show distribution of durations between two date columns."""
+    ds     = _ds()
+    result = run_query(ds, f'SELECT "{start}", "{end}" FROM data WHERE "{start}" IS NOT NULL AND "{end}" IS NOT NULL')
+    render_duration_summary(result.rows, start_col=start, end_col=end)
+
+
+@app.command(name="before-after")
+def before_after(
+    date_col:  str = typer.Option(..., "--date",   help="Date column"),
+    value_col: str = typer.Option(..., "--value",  help="Numeric value column"),
+    cutoff:    str = typer.Option(..., "--cutoff", help="Cutoff date (YYYY-MM-DD)"),
+):
+    """Compare stats before and after a cutoff date."""
+    ds = _ds()
+    r_before = run_query(ds, f'SELECT "{value_col}" FROM data WHERE "{date_col}" < \'{cutoff}\'')
+    r_after  = run_query(ds, f'SELECT "{value_col}" FROM data WHERE "{date_col}" >= \'{cutoff}\'')
+    render_before_after(r_before.rows, r_after.rows, value_col=value_col, cutoff_str=cutoff)
+
+
+# ─── Money ────────────────────────────────────────────────────────────────────
+
+def _has_col(schema_info, col_name: str) -> bool:
+    return any(c.name == col_name for c in schema_info.columns)
+
+
+@app.command(name="money-summary")
+def money_summary(
+    type_col:    str = typer.Option("type",    "--type",    help="Transaction type column"),
+    amount_col:  str = typer.Option("amount",  "--amount",  help="Amount column"),
+    date_col:    str = typer.Option("date",    "--date",    help="Date column"),
+    income_val:  str = typer.Option("income",  "--income",  help="Value meaning income"),
+    expense_val: str = typer.Option("expense", "--expense", help="Value meaning expense"),
+):
+    """Show money summary: income, expenses, savings rate."""
+    ds          = _ds()
+    schema_info = get_schema(ds)
+    has_type    = _has_col(schema_info, type_col)
+
+    if has_type:
+        r_inc = run_query(ds, f"""
+            SELECT COALESCE(sum("{amount_col}"), 0) AS total
+            FROM data WHERE "{type_col}" = '{income_val}'
+        """)
+        r_exp = run_query(ds, f"""
+            SELECT COALESCE(sum("{amount_col}"), 0)  AS total,
+                   count(*)                           AS cnt,
+                   COALESCE(avg("{amount_col}"), 0)  AS avg_val,
+                   COALESCE(max("{amount_col}"), 0)  AS max_val
+            FROM data WHERE "{type_col}" = '{expense_val}'
+        """)
+        income   = float(r_inc.rows[0]["total"])
+        expense  = float(r_exp.rows[0]["total"])
+        tx_count = int(r_exp.rows[0]["cnt"])
+        avg_exp  = float(r_exp.rows[0]["avg_val"])
+        max_exp  = float(r_exp.rows[0]["max_val"])
+    else:
+        r = run_query(ds, f"""
+            SELECT COALESCE(sum("{amount_col}"), 0)  AS total,
+                   count(*)                           AS cnt,
+                   COALESCE(avg("{amount_col}"), 0)  AS avg_val,
+                   COALESCE(max("{amount_col}"), 0)  AS max_val
+            FROM data WHERE "{amount_col}" IS NOT NULL
+        """)
+        income   = 0.0
+        expense  = float(r.rows[0]["total"])
+        tx_count = int(r.rows[0]["cnt"])
+        avg_exp  = float(r.rows[0]["avg_val"])
+        max_exp  = float(r.rows[0]["max_val"])
+
+    r_dates = run_query(ds, f'SELECT min("{date_col}") AS mn, max("{date_col}") AS mx FROM data')
+    mn_d, mx_d = r_dates.rows[0]["mn"], r_dates.rows[0]["mx"]
+    date_range = (str(mn_d)[:10], str(mx_d)[:10]) if mn_d else None
+
+    accounts: list[str] = []
+    if _has_col(schema_info, "account"):
+        r_acc = run_query(ds, "SELECT DISTINCT account FROM data WHERE account IS NOT NULL ORDER BY account")
+        accounts = [str(r["account"]) for r in r_acc.rows]
+
+    render_money_summary(income, expense, tx_count, avg_exp, max_exp, date_range, accounts or None)
+
+
+@app.command(name="expenses-by")
+def expenses_by(
+    column:      str = typer.Argument(..., help="Column to group by"),
+    type_col:    str = typer.Option("type",    "--type"),
+    amount_col:  str = typer.Option("amount",  "--amount"),
+    expense_val: str = typer.Option("expense", "--expense"),
+    limit:       int = typer.Option(15, "--limit", "-l"),
+):
+    """Show expenses broken down by a column (bar chart with %)."""
+    ds          = _ds()
+    schema_info = get_schema(ds)
+    has_type    = _has_col(schema_info, type_col)
+    where       = f'WHERE "{type_col}" = \'{expense_val}\'' if has_type else f'WHERE "{amount_col}" IS NOT NULL'
+    sql         = f'SELECT "{column}", sum("{amount_col}") AS total FROM data {where} GROUP BY "{column}" ORDER BY total DESC LIMIT {limit}'
+    result      = run_query(ds, sql)
+    items       = [(str(r[column]), float(r["total"])) for r in result.rows]
+    render_expenses_by(items, title=f"EXPENSES BY {column.upper()}")
+
+
+@app.command(name="income-expense")
+def income_expense_cmd(
+    by:          str = typer.Option("month",   "--by",      help="day|week|month|year"),
+    type_col:    str = typer.Option("type",    "--type"),
+    amount_col:  str = typer.Option("amount",  "--amount"),
+    date_col:    str = typer.Option("date",    "--date"),
+    income_val:  str = typer.Option("income",  "--income"),
+    expense_val: str = typer.Option("expense", "--expense"),
+):
+    """Show income vs expense by time period."""
+    ds = _ds()
+    if by == "month":
+        p_expr = f"strftime(\"{date_col}\"::DATE, '%Y-%m')"
+    elif by == "year":
+        p_expr = f"CAST(EXTRACT(year FROM \"{date_col}\") AS INTEGER)"
+    elif by == "week":
+        p_expr = f"strftime(\"{date_col}\"::DATE, '%Y-W%W')"
+    else:
+        p_expr = f"\"{date_col}\"::DATE"
+    sql = f"""
+        SELECT {p_expr} AS period,
+               sum(CASE WHEN "{type_col}" = '{income_val}'  THEN "{amount_col}" ELSE 0 END) AS income,
+               sum(CASE WHEN "{type_col}" = '{expense_val}' THEN "{amount_col}" ELSE 0 END) AS expense
+        FROM data WHERE "{date_col}" IS NOT NULL
+        GROUP BY {p_expr} ORDER BY {p_expr}
+    """
+    result = run_query(ds, sql)
+    rows   = [{"period": str(r["period"]), "income": r["income"], "expense": r["expense"]}
+              for r in result.rows]
+    render_income_expense(rows)
+
+
+@app.command()
+def largest(
+    amount_col:  str = typer.Option("amount",  "--amount"),
+    type_col:    str = typer.Option("type",    "--type"),
+    expense_val: str = typer.Option("expense", "--expense"),
+    limit:       int = typer.Option(10, "--limit", "-l"),
+):
+    """Show the largest transactions sorted by amount."""
+    ds          = _ds()
+    schema_info = get_schema(ds)
+    has_type    = _has_col(schema_info, type_col)
+    where       = f'WHERE "{type_col}" = \'{expense_val}\'' if has_type else f'WHERE "{amount_col}" IS NOT NULL'
+    result      = run_query(ds, f'SELECT * FROM data {where} ORDER BY "{amount_col}" DESC LIMIT {limit}')
+    render_table(result, title=f"LARGEST TRANSACTIONS")
+
+
+@app.command()
+def budget(
+    column:      str  = typer.Argument(..., help="Category column"),
+    budget_file: Path = typer.Option(..., "--budget", help="YAML file with category budgets"),
+    type_col:    str  = typer.Option("type",    "--type"),
+    amount_col:  str  = typer.Option("amount",  "--amount"),
+    expense_val: str  = typer.Option("expense", "--expense"),
+):
+    """Compare actual spending against a YAML budget file."""
+    import yaml
+    ds          = _ds()
+    schema_info = get_schema(ds)
+    has_type    = _has_col(schema_info, type_col)
+    where       = f'WHERE "{type_col}" = \'{expense_val}\'' if has_type else f'WHERE "{amount_col}" IS NOT NULL'
+    sql         = f'SELECT "{column}", sum("{amount_col}") AS total FROM data {where} GROUP BY "{column}" ORDER BY total DESC'
+    result      = run_query(ds, sql)
+    items       = [(str(r[column]), float(r["total"])) for r in result.rows]
+    with open(budget_file) as f:
+        budget_dict = yaml.safe_load(f)
+    render_budget(items, budget_dict)
+
+
+@app.command(name="burn-rate")
+def burn_rate(
+    budget_amount: float        = typer.Option(..., "--budget", help="Monthly budget"),
+    month:         str          = typer.Option("",  "--month",  help="Month as YYYY-MM (default: latest in data)"),
+    type_col:      str          = typer.Option("type",    "--type"),
+    amount_col:    str          = typer.Option("amount",  "--amount"),
+    date_col:      str          = typer.Option("date",    "--date"),
+    expense_val:   str          = typer.Option("expense", "--expense"),
+):
+    """Show spending pace vs budget for a month."""
+    from datetime import date as _date
+    from calendar import monthrange
+    ds          = _ds()
+    schema_info = get_schema(ds)
+    has_type    = _has_col(schema_info, type_col)
+
+    if not month:
+        r = run_query(ds, f'SELECT max("{date_col}") AS mx FROM data')
+        month = str(r.rows[0]["mx"])[:7]
+
+    year, mon  = int(month[:4]), int(month[5:7])
+    days_total = monthrange(year, mon)[1]
+    today      = _date.today()
+    if today.year == year and today.month == mon:
+        days_passed = today.day
+    else:
+        days_passed = days_total
+
+    type_filter = f' AND "{type_col}" = \'{expense_val}\'' if has_type else ''
+    r_spent = run_query(ds, f"""
+        SELECT COALESCE(sum("{amount_col}"), 0) AS total FROM data
+        WHERE strftime("{date_col}"::DATE, '%Y-%m') = '{month}'{type_filter}
+    """)
+    spent = float(r_spent.rows[0]["total"])
+
+    month_names = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]
+    render_burn_rate(spent, budget_amount, days_passed, days_total,
+                     f"{month_names[mon - 1]} {year}")
+
+
+@app.command(name="savings-rate")
+def savings_rate_cmd(
+    by:          str = typer.Option("month",   "--by"),
+    type_col:    str = typer.Option("type",    "--type"),
+    amount_col:  str = typer.Option("amount",  "--amount"),
+    date_col:    str = typer.Option("date",    "--date"),
+    income_val:  str = typer.Option("income",  "--income"),
+    expense_val: str = typer.Option("expense", "--expense"),
+):
+    """Show savings rate trend by time period."""
+    ds = _ds()
+    if by == "month":
+        p_expr = f"strftime(\"{date_col}\"::DATE, '%Y-%m')"
+    elif by == "year":
+        p_expr = f"CAST(EXTRACT(year FROM \"{date_col}\") AS INTEGER)"
+    elif by == "week":
+        p_expr = f"strftime(\"{date_col}\"::DATE, '%Y-W%W')"
+    else:
+        p_expr = f"\"{date_col}\"::DATE"
+    sql = f"""
+        SELECT {p_expr} AS period,
+               sum(CASE WHEN "{type_col}" = '{income_val}'  THEN "{amount_col}" ELSE 0 END) AS income,
+               sum(CASE WHEN "{type_col}" = '{expense_val}' THEN "{amount_col}" ELSE 0 END) AS expense
+        FROM data WHERE "{date_col}" IS NOT NULL
+        GROUP BY {p_expr} ORDER BY {p_expr}
+    """
+    result = run_query(ds, sql)
+    rows   = [{"period": str(r["period"]), "income": r["income"], "expense": r["expense"]}
+              for r in result.rows]
+    render_savings_rate(rows)
+
+
+@app.command()
+def subscriptions(
+    type_col:    str = typer.Option("type",    "--type"),
+    amount_col:  str = typer.Option("amount",  "--amount"),
+    date_col:    str = typer.Option("date",    "--date"),
+    note_col:    str = typer.Option("note",    "--note",    help="Column to group recurring by"),
+    expense_val: str = typer.Option("expense", "--expense"),
+    min_months:  int = typer.Option(2, "--min-months", help="Minimum months to count as recurring"),
+):
+    """Detect recurring payments (same name, similar amount, multiple months)."""
+    ds          = _ds()
+    schema_info = get_schema(ds)
+    has_type    = _has_col(schema_info, type_col)
+    type_filter = f' AND "{type_col}" = \'{expense_val}\'' if has_type else ''
+    sql = f"""
+        WITH monthly AS (
+            SELECT
+                "{note_col}" AS name,
+                strftime("{date_col}"::DATE, '%Y-%m') AS month,
+                avg("{amount_col}") AS avg_amount
+            FROM data
+            WHERE "{note_col}" IS NOT NULL{type_filter}
+            GROUP BY "{note_col}", strftime("{date_col}"::DATE, '%Y-%m')
+        )
+        SELECT name, count(DISTINCT month) AS months, avg(avg_amount) AS amount
+        FROM monthly
+        GROUP BY name
+        HAVING count(DISTINCT month) >= {min_months}
+        ORDER BY months DESC, amount DESC
+    """
+    result = run_query(ds, sql)
+    items  = [{"name": r["name"], "amount": r["amount"], "months": r["months"]}
+              for r in result.rows]
+    render_subscriptions(items)
+
+
+@app.command(name="money-report")
+def money_report(
+    month:        str           = typer.Option("",         "--month",    help="Month YYYY-MM (default: all)"),
+    type_col:     str           = typer.Option("type",     "--type"),
+    amount_col:   str           = typer.Option("amount",   "--amount"),
+    date_col:     str           = typer.Option("date",     "--date"),
+    category_col: str           = typer.Option("category", "--category"),
+    income_val:   str           = typer.Option("income",   "--income"),
+    expense_val:  str           = typer.Option("expense",  "--expense"),
+    budget_file:  Optional[Path]= typer.Option(None,       "--budget"),
+):
+    """Full money report: summary, expenses by category, cashflow."""
+    import yaml
+    ds          = _ds()
+    schema_info = get_schema(ds)
+    has_type    = _has_col(schema_info, type_col)
+
+    month_filter     = f' AND strftime("{date_col}"::DATE, \'%Y-%m\') = \'{month}\'' if month else ''
+    month_filter_pre = f' WHERE strftime("{date_col}"::DATE, \'%Y-%m\') = \'{month}\'' if month else ' WHERE 1=1'
+    type_exp_filter  = f'{month_filter_pre} AND "{type_col}" = \'{expense_val}\'' if has_type else f'{month_filter_pre} AND "{amount_col}" IS NOT NULL'
+
+    if has_type:
+        r_inc = run_query(ds, f'SELECT COALESCE(sum("{amount_col}"), 0) AS total FROM data WHERE "{type_col}" = \'{income_val}\'{month_filter}')
+        r_exp = run_query(ds, f'SELECT COALESCE(sum("{amount_col}"), 0) AS total FROM data WHERE "{type_col}" = \'{expense_val}\'{month_filter}')
+        income  = float(r_inc.rows[0]["total"])
+        expense = float(r_exp.rows[0]["total"])
+    else:
+        r = run_query(ds, f'SELECT COALESCE(sum("{amount_col}"), 0) AS total FROM data WHERE "{amount_col}" IS NOT NULL{month_filter}')
+        income  = 0.0
+        expense = float(r.rows[0]["total"])
+
+    r_cat     = run_query(ds, f'SELECT "{category_col}", sum("{amount_col}") AS total FROM data{type_exp_filter} GROUP BY "{category_col}" ORDER BY total DESC LIMIT 15')
+    exp_by_cat = [(str(r[category_col]), float(r["total"])) for r in r_cat.rows]
+
+    r_dates   = run_query(ds, f'SELECT min("{date_col}") AS mn, max("{date_col}") AS mx FROM data')
+    mn_d, mx_d = r_dates.rows[0]["mn"], r_dates.rows[0]["mx"]
+    date_range = (str(mn_d)[:10], str(mx_d)[:10]) if mn_d else None
+
+    r_large = run_query(ds, f'SELECT "{date_col}", "{category_col}", "{amount_col}" FROM data{type_exp_filter} ORDER BY "{amount_col}" DESC LIMIT 5')
+
+    budget_dict: dict[str, float] | None = None
+    if budget_file:
+        with open(budget_file) as f:
+            budget_dict = yaml.safe_load(f)
+
+    render_money_report(income, expense, exp_by_cat, date_range,
+                        r_large.rows, budget_dict, month_label=month)
+
+
+# ── Time commands (new) ──────────────────────────────────────────────────────
+
+@app.command()
+def countdown(
+    date_col:  str = typer.Option("deadline", "--date",  help="Column with deadline dates"),
+    label_col: str = typer.Option("task",     "--label", help="Column with task/event labels"),
+):
+    """Show days until (or since) each deadline."""
+    ds   = _ds()
+    sql  = f'SELECT * FROM data ORDER BY "{date_col}"'
+    rows = run_query(ds, sql).rows
+    render_countdown(rows, date_col=date_col, label_col=label_col)
+
+
+@app.command()
+def sessions(
+    start_col: str = typer.Option("start",    "--start",    help="Start datetime column"),
+    end_col:   str = typer.Option("end",      "--end",      help="End datetime column"),
+    label_col: str = typer.Option("activity", "--label",    help="Activity label column"),
+    width:     int = typer.Option(48,         "--width",    help="Timeline width in chars"),
+):
+    """Multi-day intraday session timeline (24h ruler per day)."""
+    ds   = _ds()
+    sql  = f'SELECT * FROM data ORDER BY "{start_col}"'
+    rows = run_query(ds, sql).rows
+    render_sessions(rows, start_col=start_col, end_col=end_col, label_col=label_col, width=width)
+
+
+# ── Money commands (new) ─────────────────────────────────────────────────────
+
+@app.command()
+def drill(
+    category:      str = typer.Argument(...,         help="Category value to drill into"),
+    category_col:  str = typer.Option("category",    "--category"),
+    subcat_col:    str = typer.Option("subcategory", "--subcat"),
+    amount_col:    str = typer.Option("amount",      "--amount"),
+    date_col:      str = typer.Option("date",        "--date"),
+    type_col:      str = typer.Option("type",        "--type"),
+    expense_val:   str = typer.Option("expense",     "--expense"),
+    n:             int = typer.Option(5,             "--n",       help="Top N largest transactions"),
+):
+    """Drill into a single category: subcategory breakdown + largest transactions."""
+    ds          = _ds()
+    schema_info = get_schema(ds)
+    has_type    = _has_col(schema_info, type_col)
+    has_subcat  = _has_col(schema_info, subcat_col)
+
+    type_filter = f' AND "{type_col}" = \'{expense_val}\'' if has_type else ''
+    where       = f'WHERE "{category_col}" = \'{category}\'{type_filter}'
+
+    r_stats  = run_query(ds, f'SELECT COUNT(*) AS cnt, SUM("{amount_col}") AS total, AVG("{amount_col}") AS avg FROM data {where}')
+    stats    = r_stats.rows[0] if r_stats.rows else {}
+    total    = float(stats.get("total") or 0)
+    tx_count = int(stats.get("cnt") or 0)
+    avg      = float(stats.get("avg") or 0)
+
+    subcats: list[tuple[str, float]] = []
+    if has_subcat:
+        r_sub  = run_query(ds, f'SELECT "{subcat_col}", SUM("{amount_col}") AS t FROM data {where} GROUP BY "{subcat_col}" ORDER BY t DESC')
+        subcats = [(str(r[subcat_col]), float(r["t"])) for r in r_sub.rows]
+
+    r_large  = run_query(ds, f'SELECT "{date_col}", "{subcat_col if has_subcat else category_col}", "{amount_col}" FROM data {where} ORDER BY "{amount_col}" DESC LIMIT {n}')
+    render_drill(category, total, tx_count, avg, subcats, r_large.rows)
+
+
+@app.command(name="spend-by-weekday")
+def spend_by_weekday(
+    date_col:    str = typer.Option("date",    "--date"),
+    amount_col:  str = typer.Option("amount",  "--amount"),
+    type_col:    str = typer.Option("type",    "--type"),
+    expense_val: str = typer.Option("expense", "--expense"),
+    mode:        str = typer.Option("total",   "--mode",   help="total or avg"),
+):
+    """Average or total spending by day of week (Mon–Sun)."""
+    ds          = _ds()
+    schema_info = get_schema(ds)
+    has_type    = _has_col(schema_info, type_col)
+    type_filter = f' AND "{type_col}" = \'{expense_val}\'' if has_type else ''
+
+    agg = f'SUM("{amount_col}")' if mode == "total" else f'AVG("{amount_col}")'
+    sql = f"""
+        SELECT dayname("{date_col}"::DATE) AS weekday,
+               dayofweek("{date_col}"::DATE) AS dow,
+               {agg} AS val
+        FROM data
+        WHERE "{amount_col}" IS NOT NULL{type_filter}
+        GROUP BY weekday, dow
+        ORDER BY dow
+    """
+    result = run_query(ds, sql)
+    day_order = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+    day_abbr  = {"Monday": "Mon", "Tuesday": "Tue", "Wednesday": "Wed", "Thursday": "Thu",
+                 "Friday": "Fri", "Saturday": "Sat", "Sunday": "Sun"}
+    row_map   = {r["weekday"]: float(r["val"] or 0) for r in result.rows}
+    items     = [(day_abbr.get(d, d[:3]), row_map.get(d, 0.0)) for d in day_order if d in row_map]
+    title     = f"SPENDING BY WEEKDAY ({mode})"
+    render_spend_by_weekday(items, title=title)
+
+
+@app.command()
+def remaining(
+    budget:      float = typer.Option(...,       "--budget", help="Total budget for the month"),
+    month:       str   = typer.Option("",        "--month",  help="Month YYYY-MM (default: current)"),
+    date_col:    str   = typer.Option("date",    "--date"),
+    amount_col:  str   = typer.Option("amount",  "--amount"),
+    type_col:    str   = typer.Option("type",    "--type"),
+    expense_val: str   = typer.Option("expense", "--expense"),
+):
+    """Budget remaining and safe daily spend."""
+    from calendar import monthrange
+    from datetime import date
+
+    ds          = _ds()
+    schema_info = get_schema(ds)
+    has_type    = _has_col(schema_info, type_col)
+
+    if not month:
+        month = date.today().strftime("%Y-%m")
+
+    type_filter = f' AND "{type_col}" = \'{expense_val}\'' if has_type else ''
+    sql = f"""
+        SELECT COALESCE(SUM("{amount_col}"), 0) AS spent
+        FROM data
+        WHERE strftime("{date_col}"::DATE, '%Y-%m') = '{month}'{type_filter}
+    """
+    spent = float(run_query(ds, sql).rows[0]["spent"])
+
+    y, m     = int(month[:4]), int(month[5:7])
+    days_total  = monthrange(y, m)[1]
+    today       = date.today()
+    if today.year == y and today.month == m:
+        days_passed = today.day
+    else:
+        days_passed = days_total
+
+    render_remaining(spent, budget, days_passed, days_total, month_label=month)
+
+
+@app.command(name="note-analysis")
+def note_analysis(
+    note_col:    str = typer.Option("note",    "--note",    help="Merchant/note column"),
+    amount_col:  str = typer.Option("amount",  "--amount"),
+    type_col:    str = typer.Option("type",    "--type"),
+    expense_val: str = typer.Option("expense", "--expense"),
+    n:           int = typer.Option(20,        "--n",       help="Top N merchants"),
+):
+    """Group by merchant/note column: count, total, average."""
+    ds          = _ds()
+    schema_info = get_schema(ds)
+    has_type    = _has_col(schema_info, type_col)
+    type_filter = f' AND "{type_col}" = \'{expense_val}\'' if has_type else ''
+
+    sql = f"""
+        SELECT "{note_col}" AS merchant,
+               COUNT(*) AS count,
+               SUM("{amount_col}") AS total,
+               AVG("{amount_col}") AS avg
+        FROM data
+        WHERE "{amount_col}" IS NOT NULL{type_filter}
+        GROUP BY "{note_col}"
+        ORDER BY total DESC
+        LIMIT {n}
+    """
+    rows  = run_query(ds, sql).rows
+    items = [{"merchant": r["merchant"], "count": r["count"],
+              "total": float(r["total"] or 0), "avg": float(r["avg"] or 0)}
+             for r in rows]
+    render_note_analysis(items)
+
+
+@app.command()
+def forecast(
+    months_back: int = typer.Option(3,        "--history", help="Months of history to average"),
+    months_fwd:  int = typer.Option(3,        "--forward", help="Months to project forward"),
+    date_col:    str = typer.Option("date",   "--date"),
+    amount_col:  str = typer.Option("amount", "--amount"),
+    type_col:    str = typer.Option("type",   "--type"),
+    income_val:  str = typer.Option("income", "--income"),
+    expense_val: str = typer.Option("expense","--expense"),
+):
+    """Project future cashflow based on rolling average of recent months."""
+    from datetime import date
+
+    ds          = _ds()
+    schema_info = get_schema(ds)
+    has_type    = _has_col(schema_info, type_col)
+
+    if has_type:
+        sql = f"""
+            SELECT strftime("{date_col}"::DATE, '%Y-%m') AS period,
+                   SUM(CASE WHEN "{type_col}" = '{income_val}'  THEN "{amount_col}" ELSE 0 END) AS income,
+                   SUM(CASE WHEN "{type_col}" = '{expense_val}' THEN "{amount_col}" ELSE 0 END) AS expense
+            FROM data
+            GROUP BY period
+            ORDER BY period DESC
+            LIMIT {months_back}
+        """
+    else:
+        sql = f"""
+            SELECT strftime("{date_col}"::DATE, '%Y-%m') AS period,
+                   0 AS income,
+                   SUM("{amount_col}") AS expense
+            FROM data
+            GROUP BY period
+            ORDER BY period DESC
+            LIMIT {months_back}
+        """
+
+    hist_rows = run_query(ds, sql).rows
+    if not hist_rows:
+        console.print("[dim]No data[/dim]")
+        return
+
+    historical = [{"period": r["period"], "income": float(r["income"] or 0),
+                   "expense": float(r["expense"] or 0)} for r in hist_rows]
+
+    avg_inc = sum(r["income"] for r in historical) / len(historical)
+    avg_exp = sum(r["expense"] for r in historical) / len(historical)
+
+    # Project forward from next month
+    today = date.today()
+    y, m  = today.year, today.month
+    projected = []
+    for _ in range(months_fwd):
+        m += 1
+        if m > 12:
+            m  = 1
+            y += 1
+        projected.append({"period": f"{y}-{m:02d}", "income": avg_inc, "expense": avg_exp})
+
+    render_forecast(historical[::-1], projected)
+
+
+# ── Teacher commands ──────────────────────────────────────────────────────────
+
+@app.command(name="teacher-summary")
+def teacher_summary(
+    score_col:      str = typer.Option("score",      "--score"),
+    max_score_col:  str = typer.Option("max_score",  "--max-score"),
+    student_col:    str = typer.Option("student",    "--student"),
+    assignment_col: str = typer.Option("assignment", "--assignment"),
+    topic_col:      str = typer.Option("topic",      "--topic"),
+):
+    """Class overview: averages, pass rate, grade distribution, at-risk count."""
+    ds   = _ds()
+    rows = run_query(ds, "SELECT * FROM data").rows
+    render_teacher_summary(rows, score_col=score_col, max_score_col=max_score_col,
+                           student_col=student_col, assignment_col=assignment_col,
+                           topic_col=topic_col)
+
+
+@app.command()
+def gradebook(
+    score_col:      str = typer.Option("score",      "--score"),
+    max_score_col:  str = typer.Option("max_score",  "--max-score"),
+    student_col:    str = typer.Option("student",    "--student"),
+    assignment_col: str = typer.Option("assignment", "--assignment"),
+):
+    """Pivot table: students × assignments with scores. Missing = '--'."""
+    ds   = _ds()
+    rows = run_query(ds, "SELECT * FROM data").rows
+    render_gradebook(rows, score_col=score_col, max_score_col=max_score_col,
+                     student_col=student_col, assignment_col=assignment_col)
+
+
+@app.command(name="at-risk")
+def at_risk(
+    score_col:      str   = typer.Option("score",      "--score"),
+    max_score_col:  str   = typer.Option("max_score",  "--max-score"),
+    student_col:    str   = typer.Option("student",    "--student"),
+    assignment_col: str   = typer.Option("assignment", "--assignment"),
+):
+    """Flag students below 70% average or with 2+ missing submissions."""
+    ds   = _ds()
+    rows = run_query(ds, "SELECT * FROM data").rows
+
+    # Compute per-student avg and missing count
+    all_assignments = sorted({r[assignment_col] for r in rows if r.get(assignment_col)})
+    student_data: dict[str, dict[str, float | None]] = {}
+    for r in rows:
+        s  = r.get(student_col)
+        a  = r.get(assignment_col)
+        sc = r.get(score_col)
+        mx = r.get(max_score_col, 100)
+        if s and a:
+            pct = float(sc) / float(mx) * 100 if sc is not None and mx else None
+            student_data.setdefault(s, {})[a] = pct
+
+    summary = []
+    for student, scores in student_data.items():
+        valid   = [v for v in scores.values() if v is not None]
+        missing = sum(1 for a in all_assignments if scores.get(a) is None)
+        avg     = sum(valid) / len(valid) if valid else 0.0
+        summary.append({"student": student, "avg": avg, "missing": missing,
+                         "assignments": len(valid)})
+
+    render_at_risk(summary)
+
+
+@app.command(name="score-distribution")
+def score_distribution(
+    assignment:     str = typer.Option("", "--assignment", "-a", help="Filter to one assignment (default: all)"),
+    score_col:      str = typer.Option("score",      "--score"),
+    max_score_col:  str = typer.Option("max_score",  "--max-score"),
+    assignment_col: str = typer.Option("assignment", "--assignment-col"),
+):
+    """Histogram of scores grouped into grade bands (0-49, 50-59, …, 90-100)."""
+    ds     = _ds()
+    where  = f' WHERE "{assignment_col}" = \'{assignment}\'' if assignment else ''
+    rows   = run_query(ds, f'SELECT "{score_col}", "{max_score_col}" FROM data{where}').rows
+    scores = [float(r[score_col]) / float(r[max_score_col] or 100) * 100
+              for r in rows if r.get(score_col) is not None]
+    render_score_distribution(scores, assignment=assignment)
+
+
+@app.command(name="missing-work")
+def missing_work(
+    student_col:    str = typer.Option("student",    "--student"),
+    assignment_col: str = typer.Option("assignment", "--assignment"),
+    score_col:      str = typer.Option("score",      "--score"),
+    topic_col:      str = typer.Option("topic",      "--topic"),
+):
+    """List student × assignment combinations with no score (missing submissions)."""
+    ds   = _ds()
+    rows = run_query(ds, "SELECT * FROM data").rows
+
+    all_assignments = sorted({r[assignment_col] for r in rows if r.get(assignment_col)})
+    all_students    = sorted({r[student_col]    for r in rows if r.get(student_col)})
+    submitted: set[tuple[str, str]] = {
+        (r[student_col], r[assignment_col])
+        for r in rows
+        if r.get(student_col) and r.get(assignment_col) and r.get(score_col) is not None
+    }
+
+    missing_rows = []
+    for student in all_students:
+        for assignment in all_assignments:
+            if (student, assignment) not in submitted:
+                topic = next(
+                    (r.get(topic_col, "") for r in rows if r.get(assignment_col) == assignment),
+                    ""
+                )
+                missing_rows.append({"student": student, "assignment": assignment, "topic": topic})
+
+    render_missing_work(missing_rows)
