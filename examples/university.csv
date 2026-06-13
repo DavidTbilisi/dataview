@@ -1,0 +1,21 @@
+course,credits,semester,status,score
+Intro to Programming,6,2024 Fall,done,92
+Mathematics I,6,2024 Fall,done,88
+English I,6,2024 Fall,done,85
+Logic & Discrete Math,6,2024 Fall,done,90
+Computer Architecture,6,2024 Fall,done,78
+Data Structures,6,2025 Spring,done,95
+Mathematics II,6,2025 Spring,done,82
+English II,6,2025 Spring,done,88
+Algorithms,6,2025 Spring,done,74
+Databases,6,2025 Spring,done,91
+Networks I,6,2025 Fall,done,86
+Operating Systems,6,2025 Fall,done,79
+Software Engineering,6,2025 Fall,done,93
+Probability & Stats,6,2025 Fall,done,77
+Computer Graphics,6,2025 Fall,done,68
+Algorithms Advanced,6,2026 Spring,active,72
+Networks II,6,2026 Spring,failed,41
+Cloud Computing,6,2026 Spring,done,94
+Security,6,2026 Spring,done,89
+Machine Learning,6,2026 Spring,active,85

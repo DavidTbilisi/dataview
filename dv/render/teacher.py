@@ -333,3 +333,223 @@ def render_missing_work(
         for s, n in sorted(by_student.items(), key=lambda x: -x[1]):
             console.print(f"  [bold]{s}[/bold]  [dim]{n} missing[/dim]")
         console.print()
+
+
+def render_topic_mastery(
+    items: list[dict],
+    reteach_threshold: float = 70.0,
+    title: str = "TOPIC MASTERY",
+) -> None:
+    """items: [{"topic": str, "avg": float, "pass_rate": float, "count": int}]"""
+    if not items:
+        console.print("[dim]No topic data[/dim]")
+        return
+
+    console.print()
+    console.print(Rule(f"[bold]{title}[/bold]", style="dim", align="left"))
+    console.print()
+
+    t = RichTable(box=box.SIMPLE_HEAD, header_style="bold dim", show_edge=False, padding=(0, 1))
+    t.add_column("topic",     style="bold")
+    t.add_column("avg",       justify="right")
+    t.add_column("pass rate", justify="right", style="dim")
+    t.add_column("students",  justify="right", style="dim")
+    t.add_column("chart")
+
+    bar_w = 20
+    max_avg = max(r["avg"] for r in items) or 1
+    reteach_list = []
+    for r in items:
+        avg       = float(r["avg"])
+        pass_rate = float(r.get("pass_rate") or 0)
+        count     = int(r.get("count") or 0)
+        bar       = "#" * max(1, int(avg / 100 * bar_w))
+        style     = "green" if avg >= reteach_threshold else ("yellow" if avg >= 60 else "red")
+        t.add_row(
+            str(r["topic"]),
+            Text(f"{avg:.1f}%", style=style),
+            f"{pass_rate:.1f}%",
+            str(count),
+            Text(f"{bar:<{bar_w}}", style=style),
+        )
+        if avg < reteach_threshold:
+            reteach_list.append((str(r["topic"]), avg))
+
+    console.print(t)
+
+    if reteach_list:
+        console.print()
+        console.print(Rule("[dim]NEEDS RETEACHING[/dim]", style="dim", align="left"))
+        console.print()
+        for i, (topic, avg) in enumerate(sorted(reteach_list, key=lambda x: x[1]), 1):
+            console.print(f"  [red]{i}.[/red]  [bold]{topic}[/bold]  [dim]{avg:.1f}%[/dim]")
+    console.print()
+
+
+def render_assignment_difficulty(
+    items: list[dict],
+    title: str = "ASSIGNMENT DIFFICULTY",
+) -> None:
+    """items: [{"assignment", "avg", "median", "pass_rate", "submitted", "missing"}]"""
+    if not items:
+        console.print("[dim]No data[/dim]")
+        return
+
+    def _difficulty(avg: float) -> Text:
+        if avg >= 80:
+            return Text("easy",   style="green")
+        if avg >= 65:
+            return Text("normal", style="dim")
+        return Text("hard", style="red")
+
+    console.print()
+    console.print(Rule(f"[bold]{title}[/bold]", style="dim", align="left"))
+    console.print()
+
+    t = RichTable(box=box.SIMPLE_HEAD, header_style="bold dim", show_edge=False, padding=(0, 1))
+    t.add_column("assignment", style="bold")
+    t.add_column("avg",        justify="right")
+    t.add_column("median",     justify="right", style="dim")
+    t.add_column("pass rate",  justify="right")
+    t.add_column("missing",    justify="right", style="dim")
+    t.add_column("difficulty")
+
+    for r in sorted(items, key=lambda x: float(x.get("avg") or 0), reverse=True):
+        avg  = float(r.get("avg") or 0)
+        med  = float(r.get("median") or 0)
+        pr   = float(r.get("pass_rate") or 0)
+        miss = int(r.get("missing") or 0)
+        t.add_row(
+            str(r["assignment"]),
+            f"{avg:.1f}%",
+            f"{med:.1f}%",
+            Text(f"{pr:.1f}%", style="green" if pr >= 70 else "red"),
+            str(miss),
+            _difficulty(avg),
+        )
+
+    console.print(t)
+
+    hardest = min(items, key=lambda x: float(x.get("avg") or 100))
+    console.print()
+    console.print(f"  [dim]hardest:[/dim]  [bold]{hardest['assignment']}[/bold]"
+                  f"  [red]{float(hardest.get('avg') or 0):.1f}%[/red]")
+    console.print()
+
+
+def render_progress_trend(
+    items: list[dict],
+    student: str = "",
+    reteach_threshold: float = 70.0,
+    title: str = "",
+) -> None:
+    """items: [{"assignment": str, "date": str, "avg": float}] sorted chronologically."""
+    if not items:
+        console.print("[dim]No data[/dim]")
+        return
+
+    title = title or (f"PROGRESS TREND: {student}" if student else "CLASS PROGRESS TREND")
+    bar_w = 20
+
+    console.print()
+    console.print(Rule(f"[bold]{title}[/bold]", style="dim", align="left"))
+    console.print()
+
+    lw = max(len(str(r["assignment"])) for r in items)
+    for r in items:
+        avg   = float(r.get("avg") or 0)
+        bar   = "#" * max(1, int(avg / 100 * bar_w))
+        style = "green" if avg >= reteach_threshold else ("yellow" if avg >= 60 else "red")
+        line  = Text(f"  {str(r['assignment']):<{lw}}  ")
+        line.append(f"{bar:<{bar_w}}", style=style)
+        line.append(f"  {avg:.1f}%")
+        console.print(line)
+
+    avgs = [float(r.get("avg") or 0) for r in items]
+    if len(avgs) >= 2:
+        trend = avgs[-1] - avgs[0]
+        direction = "improving" if trend > 2 else ("declining" if trend < -2 else "stable")
+        style = "green" if direction == "improving" else ("red" if direction == "declining" else "dim")
+        console.print()
+        console.print(f"  [dim]trend:[/dim]  [{style}]{direction}[/{style}]"
+                      f"  [dim]({avgs[0]:.1f}% → {avgs[-1]:.1f}%)[/dim]")
+    console.print()
+
+
+def render_reteach(
+    items: list[dict],
+    title: str = "RETEACH QUEUE",
+) -> None:
+    """items: [{"topic": str, "avg": float, "pass_rate": float, "priority": str}]"""
+    if not items:
+        console.print("  [green]No topics need reteaching.[/green]")
+        console.print()
+        return
+
+    console.print()
+    console.print(Rule(f"[bold]{title}[/bold]", style="dim", align="left"))
+    console.print()
+
+    t = RichTable(box=box.SIMPLE_HEAD, header_style="bold dim", show_edge=False, padding=(0, 1))
+    t.add_column("priority", style="bold")
+    t.add_column("topic")
+    t.add_column("reason", style="dim")
+
+    for r in items:
+        avg       = float(r.get("avg") or 0)
+        pass_rate = float(r.get("pass_rate") or 0)
+        priority  = str(r.get("priority", "MEDIUM"))
+        reason    = f"avg {avg:.1f}%, pass rate {pass_rate:.1f}%"
+        style     = "bold red" if priority == "HIGH" else ("yellow" if priority == "MEDIUM" else "dim")
+        t.add_row(Text(priority, style=style), str(r["topic"]), reason)
+
+    console.print(t)
+
+    top = items[0]
+    console.print()
+    console.print(f"  [dim]suggested next lesson:[/dim]  "
+                  f"Review [bold]{top['topic']}[/bold] — "
+                  f"avg {float(top.get('avg') or 0):.1f}%")
+    console.print()
+
+
+def render_teacher_report(
+    summary_rows: list[dict],
+    topic_items: list[dict],
+    assignment_items: list[dict],
+    at_risk_list: list[dict],
+    missing_rows: list[dict],
+    score_col: str = "score",
+    max_score_col: str = "max_score",
+    student_col: str = "student",
+    assignment_col: str = "assignment",
+    topic_col: str = "topic",
+    title: str = "TEACHER REPORT",
+) -> None:
+    console.print()
+    console.print(Rule(f"[bold]{title}[/bold]", style="dim", align="left"))
+    console.print()
+
+    # Summary stats inline (no sub-rule headers, keep it tight)
+    render_teacher_summary(summary_rows, score_col=score_col, max_score_col=max_score_col,
+                           student_col=student_col, assignment_col=assignment_col,
+                           topic_col=topic_col, title="SUMMARY")
+
+    if topic_items:
+        reteach_items = [
+            {"topic": r["topic"], "avg": r["avg"], "pass_rate": r.get("pass_rate", 0),
+             "priority": "HIGH" if float(r["avg"]) < 60 else "MEDIUM"}
+            for r in topic_items if float(r["avg"]) < 70
+        ]
+        render_topic_mastery(topic_items, title="TOPIC MASTERY")
+        if reteach_items:
+            render_reteach(reteach_items, title="RETEACH QUEUE")
+
+    if assignment_items:
+        render_assignment_difficulty(assignment_items, title="ASSIGNMENT DIFFICULTY")
+
+    if at_risk_list:
+        render_at_risk(at_risk_list, title="AT RISK")
+
+    if missing_rows:
+        render_missing_work(missing_rows, title="MISSING SUBMISSIONS")

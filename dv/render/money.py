@@ -646,3 +646,43 @@ def render_forecast(
 
     console.print(t)
     console.print()
+
+
+def render_fixed_variable(
+    fixed_items: list[tuple[str, float, float]],
+    variable_items: list[tuple[str, float, float]],
+    title: str = "FIXED VS VARIABLE",
+) -> None:
+    """fixed/variable_items: [(category, avg_monthly, cv)] where cv = stddev/mean."""
+    console.print()
+    console.print(Rule(f"[bold]{title}[/bold]", style="dim", align="left"))
+    console.print()
+
+    fixed_total    = sum(v for _, v, _ in fixed_items)
+    variable_total = sum(v for _, v, _ in variable_items)
+    grand_total    = fixed_total + variable_total or 1
+    max_v          = grand_total or 1
+    bar_w          = 24
+
+    def _section(label: str, items: list[tuple[str, float, float]], total: float, style: str):
+        pct = total / grand_total * 100
+        bar = _bar(total, max_v, bar_w)
+        console.print(f"  [bold]{label}[/bold]  "
+                      f"[{style}]{bar:<{bar_w}}[/{style}]  "
+                      f"{total:,.2f}  [dim]{pct:.1f}%[/dim]")
+        console.print()
+        lw = max((len(c) for c, _, _ in items), default=0)
+        vw = max((len(f"{v:,.2f}") for _, v, _ in items), default=0)
+        for cat, avg, cv in sorted(items, key=lambda x: -x[1]):
+            cv_str = f"cv={cv:.0%}" if cv > 0 else ""
+            line   = Text(f"    {cat:<{lw}}  ")
+            line.append(f"{avg:>{vw},.2f}", style=style)
+            if cv_str:
+                line.append(f"  {cv_str}", style="dim")
+            console.print(line)
+        console.print()
+
+    _section("Fixed expenses",    fixed_items,    fixed_total,    "cyan")
+    _section("Variable expenses", variable_items, variable_total, "yellow")
+    console.print(Text(f"  Total: {grand_total:,.2f}", style="bold"))
+    console.print()

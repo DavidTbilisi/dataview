@@ -37,7 +37,11 @@ from dv.render.money import (
 from dv.render.teacher import (
     render_teacher_summary, render_gradebook, render_at_risk,
     render_score_distribution, render_missing_work,
+    render_topic_mastery, render_assignment_difficulty,
+    render_progress_trend, render_reteach, render_teacher_report,
 )
+from dv.render.money import render_fixed_variable
+from dv.render.uni import render_uni_summary, render_gpa, render_semester_progress
 
 app = typer.Typer(
     name="dv",
@@ -1459,3 +1463,294 @@ def missing_work(
                 missing_rows.append({"student": student, "assignment": assignment, "topic": topic})
 
     render_missing_work(missing_rows)
+
+
+# ── Teacher commands (new) ────────────────────────────────────────────────────
+
+@app.command(name="topic-mastery")
+def topic_mastery(
+    score_col:      str   = typer.Option("score",      "--score"),
+    max_score_col:  str   = typer.Option("max_score",  "--max-score"),
+    topic_col:      str   = typer.Option("topic",      "--topic"),
+    threshold:      float = typer.Option(70.0,         "--threshold", help="Reteach below this %"),
+):
+    """Show avg and pass-rate per topic; flag topics needing reteaching."""
+    ds  = _ds()
+    sql = f"""
+        SELECT "{topic_col}" AS topic,
+               AVG(CAST("{score_col}" AS FLOAT) / CAST("{max_score_col}" AS FLOAT) * 100) AS avg,
+               COUNT(*) AS count,
+               SUM(CASE WHEN CAST("{score_col}" AS FLOAT) / CAST("{max_score_col}" AS FLOAT) * 100 >= 60
+                        THEN 1 ELSE 0 END) * 100.0 / COUNT(*) AS pass_rate
+        FROM data
+        WHERE "{score_col}" IS NOT NULL AND "{topic_col}" IS NOT NULL
+        GROUP BY "{topic_col}"
+        ORDER BY avg
+    """
+    rows  = run_query(ds, sql).rows
+    items = [{"topic": r["topic"], "avg": float(r["avg"] or 0),
+              "pass_rate": float(r["pass_rate"] or 0), "count": int(r["count"] or 0)}
+             for r in rows]
+    render_topic_mastery(items, reteach_threshold=threshold)
+
+
+@app.command(name="assignment-difficulty")
+def assignment_difficulty(
+    score_col:      str = typer.Option("score",      "--score"),
+    max_score_col:  str = typer.Option("max_score",  "--max-score"),
+    student_col:    str = typer.Option("student",    "--student"),
+    assignment_col: str = typer.Option("assignment", "--assignment"),
+):
+    """Show avg, median, pass-rate, and difficulty label per assignment."""
+    ds  = _ds()
+    total_students = run_query(ds, f'SELECT COUNT(DISTINCT "{student_col}") AS n FROM data').rows[0]["n"]
+    sql = f"""
+        SELECT "{assignment_col}" AS assignment,
+               AVG(CAST("{score_col}" AS FLOAT) / CAST("{max_score_col}" AS FLOAT) * 100) AS avg,
+               MEDIAN(CAST("{score_col}" AS FLOAT) / CAST("{max_score_col}" AS FLOAT) * 100) AS median,
+               COUNT(*) AS submitted,
+               SUM(CASE WHEN CAST("{score_col}" AS FLOAT) / CAST("{max_score_col}" AS FLOAT) * 100 >= 60
+                        THEN 1 ELSE 0 END) * 100.0 / COUNT(*) AS pass_rate,
+               {total_students} - COUNT(*) AS missing
+        FROM data
+        WHERE "{score_col}" IS NOT NULL
+        GROUP BY "{assignment_col}"
+        ORDER BY avg DESC
+    """
+    rows  = run_query(ds, sql).rows
+    items = [{"assignment": r["assignment"], "avg": float(r["avg"] or 0),
+              "median": float(r["median"] or 0), "pass_rate": float(r["pass_rate"] or 0),
+              "submitted": int(r["submitted"] or 0), "missing": int(r["missing"] or 0)}
+             for r in rows]
+    render_assignment_difficulty(items)
+
+
+@app.command(name="progress-trend")
+def progress_trend(
+    student:        str   = typer.Option("", "--student", "-s", help="Student name (default: class avg)"),
+    score_col:      str   = typer.Option("score",      "--score"),
+    max_score_col:  str   = typer.Option("max_score",  "--max-score"),
+    student_col:    str   = typer.Option("student",    "--student-col"),
+    assignment_col: str   = typer.Option("assignment", "--assignment"),
+    date_col:       str   = typer.Option("date",       "--date"),
+    threshold:      float = typer.Option(70.0,         "--threshold"),
+):
+    """Show score trend per assignment over time (for one student or class average)."""
+    ds    = _ds()
+    where = f'WHERE "{student_col}" = \'{student}\'' if student else ''
+    sql   = f"""
+        SELECT "{assignment_col}" AS assignment,
+               MIN("{date_col}") AS date,
+               AVG(CAST("{score_col}" AS FLOAT) / CAST("{max_score_col}" AS FLOAT) * 100) AS avg
+        FROM data
+        WHERE "{score_col}" IS NOT NULL {('AND "' + student_col + '" = \'' + student + "'") if student else ''}
+        GROUP BY "{assignment_col}"
+        ORDER BY MIN("{date_col}")
+    """
+    rows  = run_query(ds, sql).rows
+    items = [{"assignment": r["assignment"], "date": str(r["date"] or ""),
+              "avg": float(r["avg"] or 0)} for r in rows]
+    render_progress_trend(items, student=student, reteach_threshold=threshold)
+
+
+@app.command()
+def reteach(
+    score_col:      str   = typer.Option("score",      "--score"),
+    max_score_col:  str   = typer.Option("max_score",  "--max-score"),
+    topic_col:      str   = typer.Option("topic",      "--topic"),
+    threshold:      float = typer.Option(70.0,         "--threshold"),
+):
+    """List topics below threshold, ranked by priority for reteaching."""
+    ds  = _ds()
+    sql = f"""
+        SELECT "{topic_col}" AS topic,
+               AVG(CAST("{score_col}" AS FLOAT) / CAST("{max_score_col}" AS FLOAT) * 100) AS avg,
+               SUM(CASE WHEN CAST("{score_col}" AS FLOAT) / CAST("{max_score_col}" AS FLOAT) * 100 >= 60
+                        THEN 1 ELSE 0 END) * 100.0 / COUNT(*) AS pass_rate
+        FROM data
+        WHERE "{score_col}" IS NOT NULL AND "{topic_col}" IS NOT NULL
+        GROUP BY "{topic_col}"
+        HAVING AVG(CAST("{score_col}" AS FLOAT) / CAST("{max_score_col}" AS FLOAT) * 100) < {threshold}
+        ORDER BY avg
+    """
+    rows  = run_query(ds, sql).rows
+    items = [{"topic": r["topic"], "avg": float(r["avg"] or 0),
+              "pass_rate": float(r["pass_rate"] or 0),
+              "priority": "HIGH" if float(r["avg"] or 0) < 60 else "MEDIUM"}
+             for r in rows]
+    render_reteach(items)
+
+
+@app.command(name="teacher-report")
+def teacher_report(
+    score_col:      str = typer.Option("score",      "--score"),
+    max_score_col:  str = typer.Option("max_score",  "--max-score"),
+    student_col:    str = typer.Option("student",    "--student"),
+    assignment_col: str = typer.Option("assignment", "--assignment"),
+    topic_col:      str = typer.Option("topic",      "--topic"),
+    date_col:       str = typer.Option("date",       "--date"),
+):
+    """Full teacher report: summary, topic mastery, assignment difficulty, at-risk, missing work."""
+    ds   = _ds()
+    rows = run_query(ds, "SELECT * FROM data").rows
+
+    # Topic mastery
+    topic_sql = f"""
+        SELECT "{topic_col}" AS topic,
+               AVG(CAST("{score_col}" AS FLOAT)/CAST("{max_score_col}" AS FLOAT)*100) AS avg,
+               COUNT(*) AS count,
+               SUM(CASE WHEN CAST("{score_col}" AS FLOAT)/CAST("{max_score_col}" AS FLOAT)*100 >= 60
+                        THEN 1 ELSE 0 END)*100.0/COUNT(*) AS pass_rate
+        FROM data WHERE "{score_col}" IS NOT NULL AND "{topic_col}" IS NOT NULL
+        GROUP BY "{topic_col}" ORDER BY avg
+    """
+    topic_items = [{"topic": r["topic"], "avg": float(r["avg"] or 0),
+                    "pass_rate": float(r["pass_rate"] or 0), "count": int(r["count"] or 0)}
+                   for r in run_query(ds, topic_sql).rows]
+
+    # Assignment difficulty
+    total_students = run_query(ds, f'SELECT COUNT(DISTINCT "{student_col}") AS n FROM data').rows[0]["n"]
+    asgn_sql = f"""
+        SELECT "{assignment_col}" AS assignment,
+               AVG(CAST("{score_col}" AS FLOAT)/CAST("{max_score_col}" AS FLOAT)*100) AS avg,
+               MEDIAN(CAST("{score_col}" AS FLOAT)/CAST("{max_score_col}" AS FLOAT)*100) AS median,
+               COUNT(*) AS submitted,
+               SUM(CASE WHEN CAST("{score_col}" AS FLOAT)/CAST("{max_score_col}" AS FLOAT)*100 >= 60
+                        THEN 1 ELSE 0 END)*100.0/COUNT(*) AS pass_rate,
+               {total_students} - COUNT(*) AS missing
+        FROM data WHERE "{score_col}" IS NOT NULL
+        GROUP BY "{assignment_col}" ORDER BY avg DESC
+    """
+    asgn_items = [{"assignment": r["assignment"], "avg": float(r["avg"] or 0),
+                   "median": float(r["median"] or 0), "pass_rate": float(r["pass_rate"] or 0),
+                   "submitted": int(r["submitted"] or 0), "missing": int(r["missing"] or 0)}
+                  for r in run_query(ds, asgn_sql).rows]
+
+    # At-risk summary
+    all_assignments = sorted({r[assignment_col] for r in rows if r.get(assignment_col)})
+    student_data: dict[str, dict] = {}
+    for r in rows:
+        s, a = r.get(student_col), r.get(assignment_col)
+        sc, mx = r.get(score_col), r.get(max_score_col, 100)
+        if s and a:
+            pct = float(sc)/float(mx)*100 if sc is not None and mx else None
+            student_data.setdefault(s, {})[a] = pct
+    at_risk_list = []
+    for student, scores in student_data.items():
+        valid   = [v for v in scores.values() if v is not None]
+        missing = sum(1 for a in all_assignments if scores.get(a) is None)
+        avg     = sum(valid)/len(valid) if valid else 0.0
+        at_risk_list.append({"student": student, "avg": avg, "missing": missing})
+
+    # Missing work
+    submitted = {(r[student_col], r[assignment_col]) for r in rows
+                 if r.get(student_col) and r.get(assignment_col) and r.get(score_col) is not None}
+    missing_rows = [{"student": s, "assignment": a, "topic": next(
+                        (r.get(topic_col, "") for r in rows if r.get(assignment_col) == a), "")}
+                    for s in sorted(student_data)
+                    for a in all_assignments if (s, a) not in submitted]
+
+    render_teacher_report(rows, topic_items, asgn_items, at_risk_list, missing_rows,
+                          score_col=score_col, max_score_col=max_score_col,
+                          student_col=student_col, assignment_col=assignment_col,
+                          topic_col=topic_col)
+
+
+# ── Money commands (new) ──────────────────────────────────────────────────────
+
+@app.command(name="fixed-variable")
+def fixed_variable(
+    date_col:    str   = typer.Option("date",    "--date"),
+    amount_col:  str   = typer.Option("amount",  "--amount"),
+    category_col:str   = typer.Option("category","--category"),
+    type_col:    str   = typer.Option("type",    "--type"),
+    expense_val: str   = typer.Option("expense", "--expense"),
+    cv_threshold:float = typer.Option(0.15,      "--threshold",
+                                      help="Coefficient of variation threshold for 'fixed'"),
+):
+    """Classify expense categories as fixed (low variance) vs variable (high variance)."""
+    ds          = _ds()
+    schema_info = get_schema(ds)
+    has_type    = _has_col(schema_info, type_col)
+    type_filter = f' AND "{type_col}" = \'{expense_val}\'' if has_type else ''
+
+    sql = f"""
+        SELECT "{category_col}" AS category,
+               AVG(monthly_total)   AS avg_monthly,
+               STDDEV(monthly_total) AS stddev_monthly
+        FROM (
+            SELECT "{category_col}",
+                   strftime("{date_col}"::DATE, '%Y-%m') AS month,
+                   SUM("{amount_col}") AS monthly_total
+            FROM data
+            WHERE "{amount_col}" IS NOT NULL{type_filter}
+            GROUP BY "{category_col}", month
+        ) sub
+        GROUP BY "{category_col}"
+        ORDER BY stddev_monthly / NULLIF(AVG(monthly_total), 0)
+    """
+    rows = run_query(ds, sql).rows
+    fixed    = []
+    variable = []
+    for r in rows:
+        cat  = str(r["category"])
+        avg  = float(r["avg_monthly"] or 0)
+        std  = float(r["stddev_monthly"] or 0)
+        cv   = std / avg if avg > 0 else 0.0
+        if cv <= cv_threshold:
+            fixed.append((cat, avg, cv))
+        else:
+            variable.append((cat, avg, cv))
+    render_fixed_variable(fixed, variable)
+
+
+# ── University commands ───────────────────────────────────────────────────────
+
+@app.command(name="uni-summary")
+def uni_summary(
+    course_col:   str = typer.Option("course",   "--course"),
+    credits_col:  str = typer.Option("credits",  "--credits"),
+    semester_col: str = typer.Option("semester", "--semester"),
+    status_col:   str = typer.Option("status",   "--status"),
+    score_col:    str = typer.Option("score",    "--score"),
+):
+    """University dashboard: courses, credits, GPA, status breakdown."""
+    ds   = _ds()
+    rows = run_query(ds, "SELECT * FROM data").rows
+    render_uni_summary(rows, course_col=course_col, credits_col=credits_col,
+                       semester_col=semester_col, status_col=status_col, score_col=score_col)
+
+
+@app.command()
+def gpa(
+    course_col:  str = typer.Option("course",   "--course"),
+    credits_col: str = typer.Option("credits",  "--credits"),
+    status_col:  str = typer.Option("status",   "--status"),
+    score_col:   str = typer.Option("score",    "--score"),
+):
+    """Grade table with letter grades, grade points, and weighted GPA."""
+    ds   = _ds()
+    rows = run_query(ds, "SELECT * FROM data").rows
+    render_gpa(rows, course_col=course_col, credits_col=credits_col,
+               status_col=status_col, score_col=score_col)
+
+
+@app.command(name="semester-progress")
+def semester_progress(
+    semester:     str = typer.Option("", "--semester", "-s",
+                                     help="Semester label (default: latest)"),
+    course_col:   str = typer.Option("course",   "--course"),
+    credits_col:  str = typer.Option("credits",  "--credits"),
+    semester_col: str = typer.Option("semester", "--semester-col"),
+    status_col:   str = typer.Option("status",   "--status"),
+    score_col:    str = typer.Option("score",    "--score"),
+):
+    """Show all courses for a semester with credits, status, score, and progress bar."""
+    ds = _ds()
+    if not semester:
+        r = run_query(ds, f'SELECT MAX("{semester_col}") AS latest FROM data')
+        semester = str(r.rows[0]["latest"] or "")
+    rows = run_query(ds, f'SELECT * FROM data WHERE "{semester_col}" = \'{semester}\'').rows
+    render_semester_progress(rows, semester=semester, course_col=course_col,
+                             credits_col=credits_col, status_col=status_col,
+                             score_col=score_col)
