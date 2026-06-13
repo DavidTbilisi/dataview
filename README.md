@@ -1,12 +1,13 @@
-# dv — Personal Terminal DataView
+# dv - Personal Terminal DataView
 
-A local-first CLI for inspecting, querying, and visualizing structured data files in the terminal. Powered by DuckDB. No server, no web UI, no dependencies beyond Python.
+Local-first CLI for inspecting, querying, and visualizing structured data in a terminal.
+Powered by DuckDB, rendered with Rich.
 
 ```
-any file → summary / query / chart / report
+any file -> summary / query / chart / report
 ```
 
----
+No web server. No frontend. Just files and terminal output.
 
 ## Install
 
@@ -19,151 +20,133 @@ uv sync
 uv pip install -e .
 ```
 
-Then use `uv run dv` or activate the venv (`source .venv/bin/activate`) and run `dv` directly.
+Run with either:
 
----
-
-## Usage
-
+```bash
+uv run dv --help
+dv --help
 ```
+
+## CLI shape
+
+```bash
 dv <file> <command> [options]
 ```
 
-Every file is loaded into DuckDB as a table named `data`. All commands work against that table.
+Input files are registered in DuckDB as table `data`, so SQL commands can target that name directly.
 
----
+## Quick start
+
+```bash
+dv examples/expenses.csv schema
+dv examples/expenses.csv summary
+dv examples/expenses.csv query "SELECT category, sum(amount) AS total FROM data GROUP BY category ORDER BY total DESC"
+dv examples/expenses.csv bar category
+dv examples/tasks.csv timeline --start start --end end --label task
+```
 
 ## Commands
 
-### `schema` — column types and cardinality
+### Inspect and query
+
+- `schema`
+- `head`
+- `summary`
+- `describe`
+- `missing`
+- `table`
+- `query`
+- `report`
+
+Examples:
 
 ```bash
-dv expenses.csv schema
+dv examples/expenses.csv schema
+dv examples/expenses.csv head -n 5
+dv examples/expenses.csv table --where "amount > 30" --sort amount --desc
+dv examples/expenses.csv query "SELECT * FROM data LIMIT 20"
 ```
+
+### Aggregation
+
+- `group-by`
+- `pivot`
+- `top`
+
+Examples:
+
+```bash
+dv examples/expenses.csv group-by category --sum amount
+dv examples/expenses.csv group-by category --count --bar
+dv examples/expenses.csv pivot category date --sum amount
+dv examples/expenses.csv top category --by amount
+```
+
+### Charts and visuals
+
+- `bar`
+- `hist`
+- `spark`
+- `scatter`
+- `composition`
+- `box`
+- `outliers`
+- `heatmap`
+- `timeline`
+- `gantt`
+- `tree`
+- `calendar`
+
+Examples:
+
+```bash
+dv examples/expenses.csv bar category
+dv examples/expenses.csv hist amount --bins 12
+dv examples/expenses.csv spark amount --by date
+dv examples/tasks.csv gantt --start start --end end --label task --status status --progress progress
+dv examples/books.csv tree --path genre/subgenre/title
+```
+
+### Time analysis
+
+- `time-summary`
+- `time`
+- `by-hour`
+- `streak`
+- `gaps`
+- `compare-periods`
+
+Examples:
+
+```bash
+dv examples/expenses.csv time-summary --date date
+dv examples/expenses.csv time --date date --by month --sum amount
+dv examples/expenses.csv by-hour --date date
+dv examples/expenses.csv compare-periods --date date --value amount --period month
+```
+
+### Compare and export
+
+- `diff`
+- `export-md`
+
+Examples:
+
+```bash
+dv examples/expenses.csv diff examples/study.csv --key date
+dv examples/expenses.csv export-md report.md
+```
+
+## Screenshots
 
 ![schema](docs/screenshots/schema.svg)
-
----
-
-### `summary` — file overview and numeric stats
-
-```bash
-dv expenses.csv summary
-```
-
 ![summary](docs/screenshots/summary.svg)
-
----
-
-### `head` — first N rows
-
-```bash
-dv expenses.csv head
-dv expenses.csv head -n 5
-```
-
 ![head](docs/screenshots/head.svg)
-
----
-
-### `query` — raw SQL
-
-```bash
-dv expenses.csv query "SELECT category, sum(amount) total FROM data GROUP BY category ORDER BY total DESC"
-```
-
 ![query](docs/screenshots/query.svg)
-
----
-
-### `group-by` — aggregate by column
-
-```bash
-dv expenses.csv group-by category --sum amount
-dv expenses.csv group-by category --count
-dv expenses.csv group-by category --avg amount
-dv expenses.csv group-by category --sum amount --bar
-```
-
 ![group-by](docs/screenshots/groupby.svg)
-
----
-
-### `bar` — bar chart of value counts
-
-```bash
-dv expenses.csv bar category
-dv books.csv bar status
-```
-
 ![bar](docs/screenshots/bar.svg)
-
-![books bar](docs/screenshots/books_bar.svg)
-
----
-
-### `hist` — histogram of a numeric column
-
-```bash
-dv expenses.csv hist amount
-dv expenses.csv hist amount --bins 15
-```
-
 ![hist](docs/screenshots/hist.svg)
-
----
-
-### `timeline` — Gantt-style chart
-
-```bash
-dv tasks.csv timeline --start start --end end --label task
-```
-
 ![timeline](docs/screenshots/timeline.svg)
-
----
-
-### `table` — filtered table view
-
-```bash
-dv expenses.csv table --limit 20
-dv expenses.csv table --where "amount > 30" --sort amount --desc
-dv expenses.csv table --columns date,category,amount
-```
-
-### `top` — top N by a numeric sum
-
-```bash
-dv expenses.csv top category --by amount
-```
-
-### `spark` — sparkline of a numeric column
-
-```bash
-dv expenses.csv spark amount --by date
-```
-
-### `heatmap` — two-dimensional heatmap
-
-```bash
-dv data.csv heatmap weekday hour
-```
-
-### `missing` — missing value audit
-
-```bash
-dv expenses.csv missing
-```
-
-### `export-md` — markdown report
-
-```bash
-dv expenses.csv export-md report.md
-```
-
-Generates a full markdown report with summary, schema, and bar chart.
-
----
 
 ## Supported formats
 
@@ -177,8 +160,6 @@ Generates a full markdown report with summary, schema, and bar chart.
 | `.sqlite` / `.db` | SQLite |
 | `.duckdb` | DuckDB |
 
----
-
 ## Config
 
 Optional `.dv.yml` in the project directory or `~/.dv.yml`:
@@ -188,43 +169,36 @@ default_limit: 50
 date_format: "%Y-%m-%d"
 charts:
   width: 60
+aliases:
+  money:
+    group_by: category
+    sum: amount
 ```
 
----
+## Development
 
-## Project layout
+Run tests:
 
+```bash
+uv run pytest
 ```
+
+Project layout:
+
+```text
 dv/
   main.py           CLI commands (Typer)
-  core/
-    datasource.py   DataSource and ResultView types
-    detect.py       Format detection
-    query.py        DuckDB connection and query runner
-    schema.py       Column type inference
-    stats.py        Summary statistics
-    config.py       Config file loader
-  render/
-    table.py        Rich table renderer
-    summary.py      Schema and summary output
-    charts.py       Bar chart and sparkline
-    histogram.py    Histogram
-    timeline.py     Gantt-style timeline
-    heatmap.py      2D heatmap
-    tree.py         Hierarchy tree
-    export.py       Markdown report generator
-examples/
-  expenses.csv
-  tasks.csv
-  books.csv
-tests/              26 unit tests
+  core/             Detection, query, schema, stats, config
+  render/           Terminal tables and chart renderers
+  tui/              Reserved for later interactive mode
+examples/           Sample datasets
+tests/              Unit tests
 ```
-
----
 
 ## Stack
 
-- [Typer](https://typer.tiangolo.com/) — CLI framework
-- [Rich](https://github.com/Textualize/rich) — terminal rendering
-- [DuckDB](https://duckdb.org/) — analytics query engine
-- [uv](https://github.com/astral-sh/uv) — package management
+- [Typer](https://typer.tiangolo.com/) - CLI framework
+- [Rich](https://github.com/Textualize/rich) - terminal rendering
+- [DuckDB](https://duckdb.org/) - analytics query engine
+- [Pandas](https://pandas.pydata.org/) - normalization helpers
+- [uv](https://github.com/astral-sh/uv) - environment and package management
