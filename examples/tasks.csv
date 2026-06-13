@@ -1,0 +1,7 @@
+task,start,end,status,progress
+Build parser,2026-06-01,2026-06-03,done,100
+Render chart,2026-06-05,2026-06-09,active,40
+Import CSV,2026-06-10,2026-06-12,todo,0
+Write tests,2026-06-08,2026-06-11,active,60
+Setup CI,2026-06-13,2026-06-14,todo,0
+Release,2026-06-20,2026-06-20,milestone,0

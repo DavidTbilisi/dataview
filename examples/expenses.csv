@@ -1,0 +1,45 @@
+date,category,amount,method,note
+2026-01-03,food,85.50,cash,groceries
+2026-01-10,food,120.00,card,restaurant
+2026-01-17,food,180.00,cash,supermarket
+2026-01-24,food,234.50,card,groceries
+2026-01-07,study,80.00,card,books
+2026-01-14,software,50.00,card,subscription
+2026-01-21,transport,35.00,cash,bus pass
+2026-01-28,transport,25.00,card,taxi
+2026-02-04,food,90.00,cash,groceries
+2026-02-11,food,150.00,card,restaurant
+2026-02-18,food,200.00,cash,supermarket
+2026-02-25,food,150.00,card,groceries
+2026-02-05,study,120.00,card,online course
+2026-02-12,software,70.00,card,license
+2026-02-19,transport,30.00,cash,bus pass
+2026-02-26,transport,25.00,card,taxi
+2026-03-04,food,200.00,cash,supermarket
+2026-03-11,food,180.00,card,groceries
+2026-03-18,food,330.00,cash,restaurant
+2026-03-06,study,90.00,card,book
+2026-03-13,software,200.00,card,annual license
+2026-03-20,transport,45.00,cash,bus pass
+2026-03-27,transport,25.00,card,taxi
+2026-04-01,food,250.00,cash,groceries
+2026-04-08,food,180.00,card,restaurant
+2026-04-15,food,250.00,cash,supermarket
+2026-04-05,study,300.00,card,bootcamp
+2026-04-12,software,150.00,card,subscription
+2026-04-19,transport,50.00,cash,bus pass
+2026-04-26,transport,30.00,card,taxi
+2026-05-03,food,300.00,cash,supermarket
+2026-05-10,food,200.00,card,groceries
+2026-05-17,food,250.00,cash,restaurant
+2026-05-07,study,200.00,card,course
+2026-05-14,software,180.00,card,subscription
+2026-05-21,transport,50.00,cash,bus pass
+2026-05-28,transport,25.00,card,taxi
+2026-06-03,food,350.00,cash,supermarket
+2026-06-10,food,200.00,card,groceries
+2026-06-17,food,250.50,cash,restaurant
+2026-06-05,study,450.00,card,conference
+2026-06-12,software,240.00,card,license
+2026-06-19,transport,55.00,cash,bus pass
+2026-06-26,transport,25.00,card,taxi
