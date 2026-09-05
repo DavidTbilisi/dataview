@@ -8,6 +8,7 @@ or that never worked for a whole input format.
 case here, so the suite cannot silently fall behind the CLI.
 """
 
+import re
 import sqlite3
 from pathlib import Path
 
@@ -96,6 +97,29 @@ CASES: list[tuple[str, str, list[str]]] = [
 ]
 
 
+ANSI_RE = re.compile(r"\x1b\[[0-9;]*m")
+
+
+class _Result:
+    r"""A CliRunner result whose `.output` carries no ANSI styling.
+
+    Rich emits colour whenever the environment asks for it - a FORCE_COLOR in
+    the shell is enough, so the same code that renders plain under CI renders
+    styled on a developer's machine. Worse, the highlighter styles numbers
+    *inside* a phrase, so "showing 5 of 44 rows" reaches the buffer as
+    "showing \x1b[0m\x1b[1;2;36m5\x1b[0m\x1b[2m of ...". These assertions are
+    about what the CLI says, not how it paints it, so styling is stripped once
+    here rather than guessed at per assertion.
+    """
+
+    def __init__(self, result):
+        self._result = result
+        self.output = ANSI_RE.sub("", result.output)
+
+    def __getattr__(self, name):
+        return getattr(self._result, name)
+
+
 def run(argv: list[str]):
     """Invoke the CLI, surfacing the real exception rather than a bare exit code."""
     result = runner.invoke(app, argv, catch_exceptions=True)
@@ -105,7 +129,7 @@ def run(argv: list[str]):
             f"dv {' '.join(argv)} exited {result.exit_code}\n"
             f"{type(exc).__name__ if exc else 'no exception'}: {exc}\n{result.output}"
         )
-    return result
+    return _Result(result)
 
 
 @pytest.mark.parametrize("argv", [[f, *rest] for _, f, rest in CASES],
