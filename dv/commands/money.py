@@ -40,8 +40,6 @@ from dv.render.money import (
     render_money_report,
     render_money_summary,
     render_note_analysis,
-    render_remaining,
-    render_savings_rate,
     render_spend_by_weekday,
     render_subscriptions,
 )
@@ -309,23 +307,9 @@ def income_expense_cmd(
     income_val: IncomeVal = "income",
     expense_val: ExpenseVal = "expense",
 ):
-    """Show income vs expense by time period."""
+    """Show income vs expense by period, with savings rate and trend."""
     m = Money.load(amount_col, type_col, expense_val, income_val, date_col)
     render_income_expense(m.by_period(by))
-
-
-@app.command(name="savings-rate")
-def savings_rate_cmd(
-    by: ByOpt = "month",
-    type_col: TypeCol = "type",
-    amount_col: AmountCol = "amount",
-    date_col: DateCol = "date",
-    income_val: IncomeVal = "income",
-    expense_val: ExpenseVal = "expense",
-):
-    """Show savings rate trend by time period."""
-    m = Money.load(amount_col, type_col, expense_val, income_val, date_col)
-    render_savings_rate(m.by_period(by))
 
 
 @app.command()
@@ -372,22 +356,6 @@ def burn_rate(
     year, mon = _parse_month(month)
     render_burn_rate(m.month_spend(month), budget_amount, days_passed, days_total,
                      f"{MONTH_ABBR[mon - 1]} {year}")
-
-
-@app.command()
-def remaining(
-    budget: Annotated[float, typer.Option("--budget", help="Total budget for the month")],
-    month: Annotated[str, typer.Option("--month", help="Month YYYY-MM (default: current)")] = "",
-    date_col: DateCol = "date",
-    amount_col: AmountCol = "amount",
-    type_col: TypeCol = "type",
-    expense_val: ExpenseVal = "expense",
-):
-    """Budget remaining and safe daily spend."""
-    m = Money.load(amount_col, type_col, expense_val, date=date_col)
-    month = month or date_type.today().strftime("%Y-%m")
-    days_passed, days_total = _month_progress(month)
-    render_remaining(m.month_spend(month), budget, days_passed, days_total, month_label=month)
 
 
 @app.command()

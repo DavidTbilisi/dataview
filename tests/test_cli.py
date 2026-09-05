@@ -84,12 +84,10 @@ CASES: list[tuple[str, str, list[str]]] = [
     ("largest",         MONEY,    ["largest", "--n", "5"]),
     ("budget",          MONEY,    ["budget", "category", "--budget", "examples/budget.yml"]),
     ("burn-rate",       MONEY,    ["burn-rate", "--month", "2026-06", "--budget", "1500"]),
-    ("savings-rate",    MONEY,    ["savings-rate"]),
     ("subscriptions",   MONEY,    ["subscriptions", "--min-months", "2"]),
     ("money-report",    MONEY,    ["money-report", "--month", "2026-06"]),
     ("drill",           MONEY,    ["drill", "food", "--limit", "3"]),
     ("spend-by-weekday", MONEY,   ["spend-by-weekday"]),
-    ("remaining",       MONEY,    ["remaining", "--month", "2026-06", "--budget", "1500"]),
     ("note-analysis",   MONEY,    ["note-analysis"]),
     ("forecast",        MONEY,    ["forecast"]),
     ("fixed-variable",  MONEY,    ["fixed-variable"]),
@@ -235,14 +233,14 @@ def test_drill_without_category_errors():
         runner.invoke(app, [MONEY, "drill"], catch_exceptions=False)
 
 
-@pytest.mark.parametrize("cmd", ["income-expense", "savings-rate", "money-summary",
+@pytest.mark.parametrize("cmd", ["income-expense", "money-summary",
                                  "spend-by-weekday", "fixed-variable", "forecast"])
 def test_money_commands_without_a_type_column(cmd):
     """A file with no income/expense column is all spending, not an error.
 
-    expenses.csv has no `type`, and income-expense and savings-rate used to
-    build their CASE WHEN over it unconditionally - so they died with a binder
-    error on exactly the shape of file dv's own examples ship.
+    expenses.csv has no `type`, and income-expense built its CASE WHEN over it
+    unconditionally - so it died with a binder error on exactly the shape of
+    file dv's own examples ship.
     """
     out = run([EXPENSES, cmd]).output
     assert out.strip() and "not found" not in out
