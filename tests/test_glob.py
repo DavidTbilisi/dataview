@@ -12,7 +12,6 @@ import json
 import sqlite3
 import subprocess
 import sys
-
 from pathlib import Path
 
 import pytest
@@ -22,9 +21,8 @@ import dv.main  # noqa: F401  (registers all commands)
 from dv.app import app
 from dv.core.detect import common_format, expand_glob, is_glob
 from dv.core.errors import DvError
-
 from tests.test_cli import run
-from tests.test_json import run_json as as_json   # --json is flushed at exit
+from tests.test_json import run_json as as_json  # --json is flushed at exit
 
 runner = CliRunner()
 

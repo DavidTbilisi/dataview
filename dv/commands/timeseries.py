@@ -1,23 +1,31 @@
 """Date- and time-series commands."""
 
-from typing import Optional
 
 import typer
 
 from dv.app import (
     app,
-    ds as _ds,
-    limit_or_default,
     chart_width,
+    limit_or_default,
 )
-from dv.core.query import run_query, require_columns
-from dv.core.sql import ident, lit, period_expr, agg_expr
+from dv.app import (
+    ds as _ds,
+)
+from dv.core.query import require_columns, run_query
+from dv.core.sql import agg_expr, ident, lit, period_expr
 from dv.render.charts import render_bar
 from dv.render.time_views import (
-    render_time_summary, render_streak, render_gaps, render_compare_periods,
-    render_weekmap, render_rolling, render_cumulative,
-    render_duration_summary, render_before_after,
-    render_countdown, render_sessions,
+    render_before_after,
+    render_compare_periods,
+    render_countdown,
+    render_cumulative,
+    render_duration_summary,
+    render_gaps,
+    render_rolling,
+    render_sessions,
+    render_streak,
+    render_time_summary,
+    render_weekmap,
 )
 
 
@@ -36,9 +44,9 @@ def time_summary(
 def time_cmd(
     date_col: str = typer.Option(..., "--date", help="Date column"),
     by: str = typer.Option("month", "--by", help="Bucket: day|week|month|year|hour|weekday"),
-    sum_col: Optional[str] = typer.Option(None, "--sum", help="Column to sum"),
-    avg_col: Optional[str] = typer.Option(None, "--avg", help="Column to average"),
-    limit: Optional[int] = typer.Option(None, "--limit", "-l"),
+    sum_col: str | None = typer.Option(None, "--sum", help="Column to sum"),
+    avg_col: str | None = typer.Option(None, "--avg", help="Column to average"),
+    limit: int | None = typer.Option(None, "--limit", "-l"),
 ):
     """Aggregate data by time bucket (day, week, month, year, hour, weekday)."""
     ds = _ds()
@@ -62,7 +70,8 @@ def time_cmd(
     rows = result.rows
     if by == "weekday":
         wd_names = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
-        rows = [{**r, "period": wd_names[int(r["period"])] if r["period"] is not None else "?"} for r in rows]
+        rows = [{**r, "period": wd_names[int(r["period"])] if r["period"] is not None else "?"}
+                for r in rows]
 
     agg_col_name = sum_col or avg_col or "count"
     rows = [{**r, "period": str(r["period"])} for r in rows]
@@ -75,15 +84,12 @@ def time_cmd(
 @app.command(name="by-hour")
 def by_hour(
     date_col: str = typer.Option(..., "--date", help="Column with datetime/hour information"),
-    sum_col: Optional[str] = typer.Option(None, "--sum"),
+    sum_col: str | None = typer.Option(None, "--sum"),
 ):
     """Show activity distribution by hour of day (00–23)."""
     ds = _ds()
     require_columns(ds, date_col, sum_col)
-    if sum_col:
-        agg = f'sum("{sum_col}") as value'
-    else:
-        agg = "count(*) as value"
+    agg = f'sum("{sum_col}") as value' if sum_col else "count(*) as value"
     sql = f"""
         SELECT CAST(EXTRACT(hour FROM "{date_col}") AS INTEGER) AS hour, {agg}
         FROM data
@@ -101,7 +107,7 @@ def by_hour(
 @app.command()
 def streak(
     date_col: str = typer.Option(..., "--date", help="Date column"),
-    where: Optional[str] = typer.Option(None, "--where", help="Optional WHERE filter"),
+    where: str | None = typer.Option(None, "--where", help="Optional WHERE filter"),
 ):
     """Show streak analysis: current streak, best streak, consistency."""
     ds    = _ds()
@@ -120,7 +126,8 @@ def gaps(
     """Show gaps between consecutive events."""
     ds     = _ds()
     require_columns(ds, date_col)
-    result = run_query(ds, f'SELECT "{date_col}" FROM data WHERE "{date_col}" IS NOT NULL ORDER BY "{date_col}"')
+    result = run_query(ds, f'SELECT "{date_col}" FROM data '
+                           f'WHERE "{date_col}" IS NOT NULL ORDER BY "{date_col}"')
     render_gaps(result.rows, date_col=date_col)
 
 
@@ -158,7 +165,7 @@ def compare_periods(
 @app.command()
 def weekmap(
     date_col:  str = typer.Option(..., "--date",  help="Date column"),
-    value_col: Optional[str] = typer.Option(None, "--value", help="Value column (default: count)"),
+    value_col: str | None = typer.Option(None, "--value", help="Value column (default: count)"),
 ):
     """Show a week × weekday grid heatmap."""
     ds     = _ds()
@@ -218,7 +225,8 @@ def duration(
     """Show distribution of durations between two date columns."""
     ds     = _ds()
     require_columns(ds, start, end)
-    result = run_query(ds, f'SELECT "{start}", "{end}" FROM data WHERE "{start}" IS NOT NULL AND "{end}" IS NOT NULL')
+    result = run_query(ds, f'SELECT "{start}", "{end}" FROM data '
+                           f'WHERE "{start}" IS NOT NULL AND "{end}" IS NOT NULL')
     render_duration_summary(result.rows, start_col=start, end_col=end)
 
 

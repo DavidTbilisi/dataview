@@ -1,12 +1,10 @@
 from pathlib import Path
 
-
 from dv.core.schema import SchemaInfo
 from dv.core.stats import SummaryStats
-from dv.render.common import simple_table_heavy, rule
+from dv.render.common import rule, simple_table_heavy
 from dv.render.json_out import emit, json_mode
 from dv.render.theme import charset, console
-
 
 TYPE_STYLES = {
     "integer": "green",
@@ -40,7 +38,8 @@ def render_schema(schema: SchemaInfo) -> None:
 
     name = Path(schema.path).name
     console.print()
-    console.print(rule(f"[bold cyan]schema[/bold cyan]  [dim]{name}[/dim]", style="dim", align="left"))
+    console.print(rule(f"[bold cyan]schema[/bold cyan]  [dim]{name}[/dim]",
+                       style="dim", align="left"))
     console.print()
 
     table = simple_table_heavy()
@@ -66,7 +65,8 @@ def render_schema(schema: SchemaInfo) -> None:
             example,
         )
 
-    console.print(f"  [dim]{schema.row_count:,} rows {charset().bullet} {len(schema.columns)} columns[/dim]")
+    console.print(f"  [dim]{schema.row_count:,} rows {charset().bullet} "
+                  f"{len(schema.columns)} columns[/dim]")
     console.print()
     console.print(table)
 
@@ -95,7 +95,8 @@ def render_summary(stats: SummaryStats) -> None:
 
     name = Path(stats.path).name
     console.print()
-    console.print(rule(f"[bold cyan]summary[/bold cyan]  [dim]{name}[/dim]", style="dim", align="left"))
+    console.print(rule(f"[bold cyan]summary[/bold cyan]  [dim]{name}[/dim]",
+                       style="dim", align="left"))
     console.print()
 
     pairs = [
@@ -105,10 +106,12 @@ def render_summary(stats: SummaryStats) -> None:
         ("text",          ", ".join(stats.text_cols)    or f"{charset().emdash}"),
         ("dates",         ", ".join(stats.date_cols)    or f"{charset().emdash}"),
         ("missing",       str(stats.missing_total) if stats.missing_total else "[dim]none[/dim]"),
-        ("duplicates",    str(stats.duplicate_count) if stats.duplicate_count else "[dim]none[/dim]"),
+        ("duplicates",    str(stats.duplicate_count) if stats.duplicate_count
+                          else "[dim]none[/dim]"),
     ]
     if stats.date_range:
-        pairs.insert(2, ("date range", f"{stats.date_range[0]} {charset().arrow} {stats.date_range[1]}"))
+        pairs.insert(2, ("date range",
+                         f"{stats.date_range[0]} {charset().arrow} {stats.date_range[1]}"))
     if stats.files > 1:
         pairs.insert(0, ("files", f"{stats.files:,}"))
     key_w = max(len(k) for k, _ in pairs)
@@ -135,7 +138,8 @@ def render_missing(schema: SchemaInfo) -> None:
 
     name = Path(schema.path).name
     console.print()
-    console.print(rule(f"[bold cyan]missing[/bold cyan]  [dim]{name}[/dim]", style="dim", align="left"))
+    console.print(rule(f"[bold cyan]missing[/bold cyan]  [dim]{name}[/dim]",
+                       style="dim", align="left"))
     console.print()
 
     cols_with_missing = [c for c in schema.columns if c.missing > 0]

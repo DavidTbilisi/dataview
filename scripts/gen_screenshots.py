@@ -51,20 +51,20 @@ from dv.core.detect import make_datasource
 from dv.core.query import run_query, run_table_query
 from dv.core.schema import get_schema
 from dv.core.stats import get_summary
-from dv.render.table import render_table
-from dv.render.summary import render_schema, render_summary
 from dv.render.charts import render_bar
-from dv.render.histogram import render_histogram
-from dv.render.timeline import render_timeline
 from dv.render.gantt import render_gantt
-from dv.render.time_views import render_weekmap
+from dv.render.histogram import render_histogram
 from dv.render.money import (
-    render_money_summary,
+    render_burn_rate,
     render_expenses_by,
     render_income_expense,
-    render_burn_rate,
+    render_money_summary,
     render_subscriptions,
 )
+from dv.render.summary import render_schema, render_summary
+from dv.render.table import render_table
+from dv.render.time_views import render_weekmap
+from dv.render.timeline import render_timeline
 
 EXPENSES = Path("examples/expenses.csv")
 TASKS    = Path("examples/tasks.csv")

@@ -14,7 +14,6 @@ import shutil
 import sys
 import tempfile
 import zlib
-
 from pathlib import Path
 
 from dv.core.detect import check_format
@@ -81,7 +80,7 @@ def _sniff_gzip(head: bytes) -> str:
     try:
         inner = zlib.decompressobj(wbits=31).decompress(head, _SNIFF_BYTES)
     except zlib.error as e:
-        raise DvError("Could not read the gzip stream on stdin", hint=str(e))
+        raise DvError("Could not read the gzip stream on stdin", hint=str(e)) from e
     fmt = sniff_format(inner)
     if fmt in ("parquet", "sqlite", "duckdb"):
         raise DvError(f"A gzipped {fmt} file is not readable as a stream")

@@ -1,12 +1,13 @@
-import pytest
 from io import StringIO
+
+import pytest
 from rich.console import Console
 from rich.text import Text
 
 from dv.core.stats import ScatterGrid, bins_from_values
-from dv.render.charts import render_bar, render_sparkline, render_scatter, _bar_text
-from dv.render.histogram import render_histogram
 from dv.render import theme
+from dv.render.charts import _bar_text, render_bar, render_scatter, render_sparkline
+from dv.render.histogram import render_histogram
 from dv.render.theme import ASCII, UNICODE, set_charset
 
 

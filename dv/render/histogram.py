@@ -33,7 +33,7 @@ def render_histogram(
     for b in bins:
         precision = 0 if b.lo >= 1000 else (1 if b.lo >= 10 else 2)
         labels.append(f"{b.lo:.{precision}f} {charset().dash} {b.hi:.{precision}f}")
-    label_width = max(len(l) for l in labels)
+    label_width = max(len(label) for label in labels)
 
     count_strs = [str(c) for c in bucket_counts]
     count_width = max(len(s) for s in count_strs)
@@ -46,7 +46,7 @@ def render_histogram(
         console.print(rule(f"[bold]{title}[/bold]", style="dim", align="left"))
         console.print()
 
-    for label, count, count_str in zip(labels, bucket_counts, count_strs):
+    for label, count, count_str in zip(labels, bucket_counts, count_strs, strict=True):
         line = Text("  ")
         line.append(label.ljust(label_width), style="dim")
         line.append("  ")

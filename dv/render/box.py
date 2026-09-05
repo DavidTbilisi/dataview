@@ -1,4 +1,5 @@
 from rich.text import Text
+
 from dv.core.stats import BoxStats
 from dv.render.common import kv_pairs, rule
 from dv.render.json_out import emit, json_mode

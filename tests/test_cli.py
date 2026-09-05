@@ -54,7 +54,8 @@ CASES: list[tuple[str, str, list[str]]] = [
     ("box",             EXPENSES, ["box", "amount"]),
     ("outliers",        EXPENSES, ["outliers", "amount"]),
     ("heatmap",         EXPENSES, ["heatmap", "category", "method"]),
-    ("timeline",        TASKS,    ["timeline", "--start", "start", "--end", "end", "--label", "task"]),
+    ("timeline",        TASKS,    ["timeline", "--start", "start", "--end", "end",
+                                   "--label", "task"]),
     ("gantt",           TASKS,    ["gantt", "--start", "start", "--end", "end", "--label", "task",
                                    "--status", "status", "--progress", "progress"]),
     ("tree",            BOOKS,    ["tree", "--path", "category/status/title"]),
@@ -68,7 +69,8 @@ CASES: list[tuple[str, str, list[str]]] = [
     ("compare-periods", EXPENSES, ["compare-periods", "--date", "date", "--value", "amount",
                                    "--period", "month"]),
     ("weekmap",         EXPENSES, ["weekmap", "--date", "date", "--value", "amount"]),
-    ("rolling",         EXPENSES, ["rolling", "--date", "date", "--value", "amount", "--window", "7"]),
+    ("rolling",         EXPENSES, ["rolling", "--date", "date", "--value", "amount",
+                                   "--window", "7"]),
     ("cumulative",      EXPENSES, ["cumulative", "--date", "date", "--value", "amount"]),
     ("duration",        TASKS,    ["duration", "--start", "start", "--end", "end"]),
     ("before-after",    EXPENSES, ["before-after", "--date", "date", "--value", "amount",
@@ -402,7 +404,7 @@ def test_export_html_escapes_the_filter(tmp_path):
 
 
 def test_unknown_column_suggests_close_match():
-    with pytest.raises(DvError, match="categry|Did you mean"):
+    with pytest.raises(DvError, match=r"categry|Did you mean"):
         runner.invoke(app, [EXPENSES, "bar", "categry"], catch_exceptions=False)
 
 

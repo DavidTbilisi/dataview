@@ -1,28 +1,31 @@
 """Diffing, saved views, and file export commands."""
 
 import difflib
-
 from pathlib import Path
 
 import typer
 
 from dv.app import (
     app,
-    ds as _ds,
     config,
+)
+from dv.app import (
+    ds as _ds,
+)
+from dv.app import (
     where as _where,
 )
 from dv.core.detect import make_datasource
 from dv.core.errors import DvError
-from dv.core.query import run_query, require_columns
+from dv.core.query import require_columns, run_query
 from dv.core.schema import get_schema
-from dv.core.sql import ident, agg_expr
+from dv.core.sql import agg_expr, ident
 from dv.core.stats import get_summary
-from dv.render.theme import charset, console
-from dv.render.diff import render_diff
-from dv.render.export import export_markdown, export_html
-from dv.render.table import render_table
 from dv.render.charts import render_bar
+from dv.render.diff import render_diff
+from dv.render.export import export_html, export_markdown
+from dv.render.table import render_table
+from dv.render.theme import charset, console
 
 
 @app.command()

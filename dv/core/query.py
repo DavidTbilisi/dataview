@@ -7,7 +7,6 @@ from dv.core.errors import DvError
 from dv.core.sql import ident, lit, quote_path
 from dv.render.theme import warn
 
-
 # Names tried for the column naming each row's source file, in order. The
 # first that does not collide with a column already in the data wins.
 _FILENAME_COLS = ("filename", "_filename")
@@ -119,7 +118,7 @@ def _load(conn: duckdb.DuckDBPyConnection, ds: DataSource, select: str) -> None:
         raise DvError(
             f"Could not apply --where {ds.where!r}",
             hint=str(e).strip().splitlines()[0],
-        )
+        ) from e
 
 
 def _attach_database(conn: duckdb.DuckDBPyConnection, ds: DataSource) -> None:
@@ -200,7 +199,7 @@ def run_query(ds: DataSource, sql: str, params: list | None = None) -> ResultVie
     conn = get_connection(ds)
     result = conn.execute(sql, params) if params else conn.execute(sql)
     columns = [desc[0] for desc in result.description]
-    rows = [dict(zip(columns, row)) for row in result.fetchall()]
+    rows = [dict(zip(columns, row, strict=True)) for row in result.fetchall()]
     return ResultView(columns=columns, rows=rows)
 
 
@@ -219,7 +218,7 @@ def run_query_capped(ds: DataSource, sql: str, limit: int) -> ResultView:
     cols = [desc[0] for desc in result.description]
     fetched = result.fetchmany(limit + 1)
     truncated = len(fetched) > limit
-    rows = [dict(zip(cols, row)) for row in fetched[:limit]]
+    rows = [dict(zip(cols, row, strict=True)) for row in fetched[:limit]]
 
     total = None
     if truncated:

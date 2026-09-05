@@ -1,10 +1,10 @@
 from datetime import date
 
 from rich.text import Text
+
 from dv.render.common import rule
 from dv.render.json_out import emit, json_mode
 from dv.render.theme import charset, console
-
 
 _STATUS_KIND = {
     "done":       "done",
@@ -177,7 +177,8 @@ def render_gantt(
 
     console.print()
     console.print(Text(
-        f"  Legend: [###] done   [##-] active   [===] todo   [xxx] blocked   {charset().milestone} milestone",
+        f"  Legend: [###] done   [##-] active   [===] todo   [xxx] blocked   "
+        f"{charset().milestone} milestone",
         style="dim",
     ))
     console.print()

@@ -17,11 +17,9 @@ from typer.testing import CliRunner
 
 import dv.main  # noqa: F401  (registers all commands)
 from dv.app import app
-from dv.core.errors import DvError
 from dv.render import theme
 from dv.render.json_out import flush, set_json
-
-from tests.test_cli import CASES, EXPENSES, MONEY, TASKS
+from tests.test_cli import CASES, EXPENSES, MONEY
 
 runner = CliRunner()
 

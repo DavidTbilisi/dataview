@@ -1,20 +1,20 @@
 """Grouping, cross-tabulation and ranking commands."""
 
-from typing import Optional
 
 import typer
 
 from dv.app import (
     app,
-    ds as _ds,
     limit_or_default,
 )
-from dv.core.query import run_query, require_columns
+from dv.app import (
+    ds as _ds,
+)
+from dv.core.query import require_columns, run_query
 from dv.core.schema import get_schema
 from dv.core.sql import agg_expr, ident
-from dv.render.table import render_table, render_pivot, render_top
 from dv.render.charts import render_bar
-
+from dv.render.table import render_pivot, render_table, render_top
 
 _MONTH_ABBR = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
                "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
@@ -39,11 +39,11 @@ def _month_labels(year_months: list[str]) -> dict[str, str]:
 @app.command(name="group-by")
 def group_by(
     column: str = typer.Argument(..., help="Column to group by"),
-    sum_col: Optional[str] = typer.Option(None, "--sum", help="Column to sum"),
-    avg_col: Optional[str] = typer.Option(None, "--avg", help="Column to average"),
+    sum_col: str | None = typer.Option(None, "--sum", help="Column to sum"),
+    avg_col: str | None = typer.Option(None, "--avg", help="Column to average"),
     count: bool = typer.Option(False, "--count", help="Count rows (the default)"),
     bar: bool = typer.Option(False, "--bar", help="Also show bar chart"),
-    limit: Optional[int] = typer.Option(None, "--limit", "-l"),
+    limit: int | None = typer.Option(None, "--limit", "-l"),
 ):
     """Group by a column with optional aggregation."""
     ds = _ds()
@@ -66,8 +66,8 @@ def group_by(
 def pivot(
     row_col: str = typer.Argument(..., help="Row dimension column"),
     col_col: str = typer.Argument(..., help="Column dimension (date col becomes months)"),
-    sum_col: Optional[str] = typer.Option(None, "--sum", help="Column to sum"),
-    avg_col: Optional[str] = typer.Option(None, "--avg", help="Column to average"),
+    sum_col: str | None = typer.Option(None, "--sum", help="Column to sum"),
+    avg_col: str | None = typer.Option(None, "--avg", help="Column to average"),
     count: bool = typer.Option(False, "--count", help="Count rows (the default)"),
 ):
     """Cross-tabulate two columns. Date columns are auto-bucketed by month."""
@@ -138,12 +138,13 @@ def pivot(
 def top(
     column: str = typer.Argument(..., help="Column to rank"),
     by: str = typer.Option(..., "--by", help="Numeric column to sum"),
-    limit: Optional[int] = typer.Option(None, "--limit", "-l"),
+    limit: int | None = typer.Option(None, "--limit", "-l"),
 ):
     """Show top values ranked by a numeric sum, with share %."""
     ds = _ds()
     limit = limit_or_default(limit, 10)
     require_columns(ds, column, by)
-    sql = f'SELECT "{column}", sum("{by}") as total FROM data GROUP BY "{column}" ORDER BY total DESC LIMIT {limit}'
+    sql = (f'SELECT "{column}", sum("{by}") as total FROM data '
+           f'GROUP BY "{column}" ORDER BY total DESC LIMIT {limit}')
     result = run_query(ds, sql)
     render_top(result.rows, column_name=column, value_name=by)

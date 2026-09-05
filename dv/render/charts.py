@@ -1,9 +1,9 @@
 from rich.text import Text
+
 from dv.core.stats import ScatterGrid
 from dv.render.common import rule
 from dv.render.json_out import emit, json_mode
 from dv.render.theme import charset, console
-
 
 _BAR_COLOR = "cyan"
 
@@ -46,7 +46,7 @@ def render_bar(
         console.print(rule(f"[bold]{title}[/bold]", style="dim", align="left"))
         console.print()
 
-    for (label, value), val_str in zip(rows, val_strs):
+    for (label, value), val_str in zip(rows, val_strs, strict=True):
         line = Text("  ")
         line.append(str(label).ljust(label_width), style="default")
         line.append("  ")

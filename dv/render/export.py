@@ -46,7 +46,8 @@ def _summary_md(stats: SummaryStats) -> str:
         lines.append("|--------|-------|-----|-----|------|--------|\n")
         for ns in stats.numeric_stats:
             lines.append(
-                f"| {_cell(ns.column)} | {ns.count} | {ns.min:.2f} | {ns.max:.2f} | {ns.mean:.2f} | {ns.median:.2f} |\n"
+                f"| {_cell(ns.column)} | {ns.count} | {ns.min:.2f} | {ns.max:.2f} "
+                f"| {ns.mean:.2f} | {ns.median:.2f} |\n"
             )
         lines.append("\n")
     return "".join(lines)

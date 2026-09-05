@@ -1,4 +1,5 @@
 from rich.text import Text
+
 from dv.render.common import bar, gauge, rule, simple_table
 from dv.render.json_out import emit, json_mode
 from dv.render.theme import charset, console
@@ -21,7 +22,17 @@ def render_money_summary(
     accounts: list[str] | None = None,
 ) -> None:
     if json_mode():
-        emit("money", {"income": income, "expense": expense, "saved": income - expense, "savings_rate": (income - expense) / income * 100 if income > 0 else 0.0, "transactions": tx_count, "avg_expense": avg_expense, "max_expense": max_expense, "date_range": list(date_range) if date_range else None, "accounts": accounts or []})
+        emit("money", {
+            "income": income,
+            "expense": expense,
+            "saved": income - expense,
+            "savings_rate": (income - expense) / income * 100 if income > 0 else 0.0,
+            "transactions": tx_count,
+            "avg_expense": avg_expense,
+            "max_expense": max_expense,
+            "date_range": list(date_range) if date_range else None,
+            "accounts": accounts or [],
+        })
         return
 
     saved        = income - expense
@@ -34,7 +45,8 @@ def render_money_summary(
     console.print()
 
     if date_range:
-        console.print(f"  [dim]period[/dim]        {date_range[0]} {charset().arrow} {date_range[1]}")
+        console.print(f"  [dim]period[/dim]        "
+                      f"{date_range[0]} {charset().arrow} {date_range[1]}")
         console.print()
 
     pairs = [
@@ -79,7 +91,7 @@ def render_expenses_by(
     total = sum(v for _, v in items) or 1
     max_v = max(v for _, v in items) or 1
     bar_w = 22
-    lw    = max(len(l) for l, _ in items)
+    lw    = max(len(label) for label, _ in items)
     vw    = max(len(f"{v:,.2f}") for _, v in items)
 
     console.print()
@@ -160,7 +172,12 @@ def render_budget(
 ) -> None:
     """items: [(category, actual_amount)]"""
     if json_mode():
-        emit("budget", [{"category": k, "actual": v, "budget": budget_dict.get(k), "remaining": (budget_dict.get(k) - v) if budget_dict.get(k) is not None else None} for k, v in items])
+        emit("budget", [
+            {"category": k, "actual": v, "budget": budget_dict.get(k),
+             "remaining": (budget_dict.get(k) - v)
+                          if budget_dict.get(k) is not None else None}
+            for k, v in items
+        ])
         return
 
     if not items and not budget_dict:
@@ -260,7 +277,8 @@ def render_burn_rate(
     console.print()
     status = "ON TRACK" if pace <= 1.0 else "OVER PACE"
     style  = "green" if pace <= 1.0 else "red"
-    console.print(f"  Status: [{style}]{status}[/{style}]  ({pace:.1f}{charset().times} daily rate)")
+    console.print(f"  Status: [{style}]{status}[/{style}]  "
+                  f"({pace:.1f}{charset().times} daily rate)")
     console.print()
 
     bar_w = 30
@@ -332,7 +350,8 @@ def render_savings_rate(
         chars    = ".:-=+*#%"
         spark    = "".join(chars[min(7, int((r - mn) / rng * 7))] for r in rates)
         console.print()
-        console.print(f"  [dim]avg rate:[/dim]  [cyan]{avg_rate:.1f}%[/cyan]  [dim]trend: {spark}[/dim]")
+        console.print(f"  [dim]avg rate:[/dim]  [cyan]{avg_rate:.1f}%[/cyan]  "
+                      f"[dim]trend: {spark}[/dim]")
     console.print()
 
 
@@ -385,7 +404,16 @@ def render_money_report(
     month_label: str = "",
 ) -> None:
     if json_mode():
-        emit("money_report", {"income": income, "expense": expense, "saved": income - expense, "date_range": list(date_range) if date_range else None, "by_category": [{"label": k, "value": v} for k, v in expense_by_cat], "largest": largest, "budget": budget_dict or {}, "month": month_label or None})
+        emit("money_report", {
+            "income": income,
+            "expense": expense,
+            "saved": income - expense,
+            "date_range": list(date_range) if date_range else None,
+            "by_category": [{"label": k, "value": v} for k, v in expense_by_cat],
+            "largest": largest,
+            "budget": budget_dict or {},
+            "month": month_label or None,
+        })
         return
 
     title = f"MONEY REPORT{': ' + month_label if month_label else ''}"
@@ -421,7 +449,7 @@ def render_money_report(
         total = sum(v for _, v in expense_by_cat) or 1
         max_v = max(v for _, v in expense_by_cat) or 1
         bar_w = 20
-        lw    = max(len(l) for l, _ in expense_by_cat)
+        lw    = max(len(label) for label, _ in expense_by_cat)
         vw    = max(len(f"{v:,.2f}") for _, v in expense_by_cat)
         for label, v in expense_by_cat[:10]:
             bar = _bar(v, max_v, bar_w)
@@ -492,7 +520,14 @@ def render_drill(
 ) -> None:
     """Category drilldown: stats + subcategory bars + largest transactions."""
     if json_mode():
-        emit("drill", {"category": category, "total": total, "transactions": tx_count, "average": avg, "subcategories": [{"label": k, "value": v} for k, v in subcats], "largest": largest})
+        emit("drill", {
+            "category": category,
+            "total": total,
+            "transactions": tx_count,
+            "average": avg,
+            "subcategories": [{"label": k, "value": v} for k, v in subcats],
+            "largest": largest,
+        })
         return
 
     title = title or f"CATEGORY: {category}"
@@ -510,7 +545,7 @@ def render_drill(
         console.print()
         max_v = max(v for _, v in subcats) or 1
         bar_w = 20
-        lw    = max(len(l) for l, _ in subcats)
+        lw    = max(len(label) for label, _ in subcats)
         vw    = max(len(f"{v:,.2f}") for _, v in subcats)
         for label, v in subcats:
             bar = _bar(v, max_v, bar_w)
@@ -524,10 +559,10 @@ def render_drill(
         console.print(rule("[dim]LARGEST TRANSACTIONS[/dim]", style="dim", align="left"))
         console.print()
         t = simple_table()
-        for col in largest[0].keys():
+        for col in largest[0]:
             t.add_column(col)
         for r in largest:
-            t.add_row(*[str(r.get(c, "")) for c in largest[0].keys()])
+            t.add_row(*[str(r.get(c, "")) for c in largest[0]])
         console.print(t)
         console.print()
 
@@ -708,7 +743,11 @@ def render_fixed_variable(
 ) -> None:
     """fixed/variable_items: [(category, avg_monthly, cv)] where cv = stddev/mean."""
     if json_mode():
-        emit("categories", [{"category": c, "monthly_avg": a, "variation": v, "kind": "fixed"} for c, a, v in fixed_items] + [{"category": c, "monthly_avg": a, "variation": v, "kind": "variable"} for c, a, v in variable_items])
+        emit("categories", [
+            {"category": c, "monthly_avg": a, "variation": v, "kind": kind}
+            for kind, group in (("fixed", fixed_items), ("variable", variable_items))
+            for c, a, v in group
+        ])
         return
 
     console.print()

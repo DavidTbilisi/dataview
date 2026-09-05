@@ -1,0 +1,38 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - run: uv sync --dev
+      - run: uv run ruff check .
+
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      # Report every version, rather than stopping at the first failure.
+      fail-fast: false
+      matrix:
+        python: ["3.11", "3.12", "3.13", "3.14"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - run: uv python install ${{ matrix.python }}
+      - run: uv sync --dev --python ${{ matrix.python }}
+      - run: uv run --python ${{ matrix.python }} pytest -q
+
+      # The suite invokes `python -m dv.main`, which would still pass if the
+      # console script in pyproject.toml were wired to the wrong callable.
+      - name: The installed dv command runs
+        run: uv run --python ${{ matrix.python }} dv examples/expenses.csv summary

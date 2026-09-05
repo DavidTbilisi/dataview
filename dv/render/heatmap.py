@@ -3,7 +3,6 @@ from dv.render.json_out import emit, json_mode
 from dv.render.theme import charset, console
 
 
-
 def render_heatmap(
     cells: list[tuple[str, str, int]],
     title: str = "",

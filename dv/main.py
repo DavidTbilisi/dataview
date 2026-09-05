@@ -9,11 +9,6 @@ import sys
 import duckdb
 
 from dv.app import app
-from dv.core.errors import DvError
-from dv.core.stdin import STDIN_ARG
-from dv.render.json_out import flush as flush_json
-from dv.render.theme import err_console
-
 from dv.commands import (  # noqa: F401  (imported for command registration)
     aggregate,
     charts,
@@ -22,6 +17,10 @@ from dv.commands import (  # noqa: F401  (imported for command registration)
     money,
     timeseries,
 )
+from dv.core.errors import DvError
+from dv.core.stdin import STDIN_ARG
+from dv.render.json_out import flush as flush_json
+from dv.render.theme import err_console
 
 
 def cli() -> None:
@@ -39,14 +38,14 @@ def cli() -> None:
         err_console.print(f"[red]Error:[/red] {e.message}")
         if e.hint:
             err_console.print(f"[dim]{e.hint}[/dim]")
-        raise SystemExit(1)
+        raise SystemExit(1) from None
     except duckdb.Error as e:
         err_console.print(f"[red]Query error:[/red] {str(e).strip().splitlines()[0]}")
-        raise SystemExit(1)
+        raise SystemExit(1) from None
     except BrokenPipeError:
-        raise SystemExit(0)
+        raise SystemExit(0) from None
     except KeyboardInterrupt:
-        raise SystemExit(130)
+        raise SystemExit(130) from None
 
 
 # Options the Typer callback owns. They must precede the input file, and none

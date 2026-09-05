@@ -1,31 +1,40 @@
 """Personal-finance commands."""
 
 import re
-
 from pathlib import Path
-from typing import Optional
 
 import typer
 
 from dv.app import (
     app,
-    ds as _ds,
     limit_or_default,
 )
+from dv.app import (
+    ds as _ds,
+)
 from dv.core.errors import DvError
-from dv.core.query import run_query, require_columns
+from dv.core.query import require_columns, run_query
 from dv.core.schema import get_schema
 from dv.core.sql import lit, period_expr
 from dv.render.common import fmt_date
-from dv.render.theme import console
-from dv.render.table import render_table
 from dv.render.money import (
-    render_money_summary, render_expenses_by, render_income_expense,
-    render_budget, render_burn_rate, render_savings_rate,
-    render_subscriptions, render_money_report,
-    render_drill, render_spend_by_weekday, render_remaining,
-    render_note_analysis, render_forecast, render_fixed_variable,
+    render_budget,
+    render_burn_rate,
+    render_drill,
+    render_expenses_by,
+    render_fixed_variable,
+    render_forecast,
+    render_income_expense,
+    render_money_report,
+    render_money_summary,
+    render_note_analysis,
+    render_remaining,
+    render_savings_rate,
+    render_spend_by_weekday,
+    render_subscriptions,
 )
+from dv.render.table import render_table
+from dv.render.theme import console
 
 
 def _parse_month(month: str) -> tuple[int, int]:
@@ -43,6 +52,27 @@ def _has_col(schema_info, col_name: str) -> bool:
     return any(c.name == col_name for c in schema_info.columns)
 
 
+def _typed_sum(type_col: str, value: str, amount_col: str) -> str:
+    """Total the amount column over rows of one transaction type."""
+    return f'sum(CASE WHEN "{type_col}" = {lit(value)} THEN "{amount_col}" ELSE 0 END)'
+
+
+def _expense_where(type_col: str, expense_val: str, amount_col: str, has_type: bool) -> str:
+    """A WHERE clause selecting the expense rows.
+
+    A file with a type column marks income and expense separately; one without
+    is all spending, so the clause only has to skip rows with no amount.
+    """
+    if has_type:
+        return f'WHERE "{type_col}" = {lit(expense_val)}'
+    return f'WHERE "{amount_col}" IS NOT NULL'
+
+
+def _expense_and(type_col: str, expense_val: str, has_type: bool) -> str:
+    """The same restriction as a fragment, to append to an existing WHERE."""
+    return f' AND "{type_col}" = {lit(expense_val)}' if has_type else ''
+
+
 def _load_budget(path: Path) -> dict[str, float]:
     """Read a `category: amount` YAML file, or explain why it could not be read."""
     import yaml
@@ -54,15 +84,15 @@ def _load_budget(path: Path) -> dict[str, float]:
         with open(path) as f:
             data = yaml.safe_load(f) or {}
     except yaml.YAMLError as e:
-        raise DvError(f"Could not parse {path}", hint=str(e).splitlines()[0])
+        raise DvError(f"Could not parse {path}", hint=str(e).splitlines()[0]) from e
     if not isinstance(data, dict):
         raise DvError(f"{path} must be a mapping of category to amount")
     out = {}
     for key, value in data.items():
         try:
             out[str(key)] = float(value)
-        except (TypeError, ValueError):
-            raise DvError(f"Budget for {key!r} is not a number: {value!r}")
+        except (TypeError, ValueError) as e:
+            raise DvError(f"Budget for {key!r} is not a number: {value!r}") from e
     return out
 
 
@@ -117,7 +147,8 @@ def money_summary(
 
     accounts: list[str] = []
     if _has_col(schema_info, "account"):
-        r_acc = run_query(ds, "SELECT DISTINCT account FROM data WHERE account IS NOT NULL ORDER BY account")
+        r_acc = run_query(ds, "SELECT DISTINCT account FROM data "
+                              "WHERE account IS NOT NULL ORDER BY account")
         accounts = [str(r["account"]) for r in r_acc.rows]
 
     render_money_summary(income, expense, tx_count, avg_exp, max_exp, date_range, accounts or None)
@@ -129,7 +160,7 @@ def expenses_by(
     type_col:    str = typer.Option("type",    "--type"),
     amount_col:  str = typer.Option("amount",  "--amount"),
     expense_val: str = typer.Option("expense", "--expense"),
-    limit:       Optional[int] = typer.Option(None, "--limit", "-l"),
+    limit:       int | None = typer.Option(None, "--limit", "-l"),
 ):
     """Show expenses broken down by a column (bar chart with %)."""
     ds          = _ds()
@@ -137,8 +168,9 @@ def expenses_by(
     require_columns(ds, column, amount_col)
     schema_info = get_schema(ds)
     has_type    = _has_col(schema_info, type_col)
-    where       = f'WHERE "{type_col}" = {lit(expense_val)}' if has_type else f'WHERE "{amount_col}" IS NOT NULL'
-    sql         = f'SELECT "{column}", sum("{amount_col}") AS total FROM data {where} GROUP BY "{column}" ORDER BY total DESC LIMIT {limit}'
+    where       = _expense_where(type_col, expense_val, amount_col, has_type)
+    sql         = (f'SELECT "{column}", sum("{amount_col}") AS total FROM data {where} '
+                   f'GROUP BY "{column}" ORDER BY total DESC LIMIT {limit}')
     result      = run_query(ds, sql)
     items       = [(str(r[column]), float(r["total"])) for r in result.rows]
     render_expenses_by(items, title=f"EXPENSES BY {column.upper()}")
@@ -159,8 +191,8 @@ def income_expense_cmd(
     p_expr = period_expr(date_col, by)
     sql = f"""
         SELECT {p_expr} AS period,
-               sum(CASE WHEN "{type_col}" = {lit(income_val)}  THEN "{amount_col}" ELSE 0 END) AS income,
-               sum(CASE WHEN "{type_col}" = {lit(expense_val)} THEN "{amount_col}" ELSE 0 END) AS expense
+               {_typed_sum(type_col, income_val, amount_col)} AS income,
+               {_typed_sum(type_col, expense_val, amount_col)} AS expense
         FROM data WHERE "{date_col}" IS NOT NULL
         GROUP BY {p_expr} ORDER BY {p_expr}
     """
@@ -175,7 +207,7 @@ def largest(
     amount_col:  str = typer.Option("amount",  "--amount"),
     type_col:    str = typer.Option("type",    "--type"),
     expense_val: str = typer.Option("expense", "--expense"),
-    limit:       Optional[int] = typer.Option(None, "--limit", "-l", "--n"),
+    limit:       int | None = typer.Option(None, "--limit", "-l", "--n"),
 ):
     """Show the largest transactions sorted by amount."""
     ds          = _ds()
@@ -183,8 +215,9 @@ def largest(
     require_columns(ds, amount_col)
     schema_info = get_schema(ds)
     has_type    = _has_col(schema_info, type_col)
-    where       = f'WHERE "{type_col}" = {lit(expense_val)}' if has_type else f'WHERE "{amount_col}" IS NOT NULL'
-    result      = run_query(ds, f'SELECT * FROM data {where} ORDER BY "{amount_col}" DESC LIMIT {limit}')
+    where       = _expense_where(type_col, expense_val, amount_col, has_type)
+    result      = run_query(
+        ds, f'SELECT * FROM data {where} ORDER BY "{amount_col}" DESC LIMIT {limit}')
     render_table(result, title="LARGEST TRANSACTIONS")
 
 
@@ -201,8 +234,9 @@ def budget(
     require_columns(ds, column, amount_col)
     schema_info = get_schema(ds)
     has_type    = _has_col(schema_info, type_col)
-    where       = f'WHERE "{type_col}" = {lit(expense_val)}' if has_type else f'WHERE "{amount_col}" IS NOT NULL'
-    sql         = f'SELECT "{column}", sum("{amount_col}") AS total FROM data {where} GROUP BY "{column}" ORDER BY total DESC'
+    where       = _expense_where(type_col, expense_val, amount_col, has_type)
+    sql         = (f'SELECT "{column}", sum("{amount_col}") AS total FROM data {where} '
+                   f'GROUP BY "{column}" ORDER BY total DESC')
     result      = run_query(ds, sql)
     items       = [(str(r[column]), float(r["total"])) for r in result.rows]
     budget_dict = _load_budget(budget_file)
@@ -212,15 +246,16 @@ def budget(
 @app.command(name="burn-rate")
 def burn_rate(
     budget_amount: float        = typer.Option(..., "--budget", help="Monthly budget"),
-    month:         str          = typer.Option("",  "--month",  help="Month as YYYY-MM (default: latest in data)"),
+    month:         str          = typer.Option("",  "--month",
+                                              help="Month as YYYY-MM (default: latest)"),
     type_col:      str          = typer.Option("type",    "--type"),
     amount_col:    str          = typer.Option("amount",  "--amount"),
     date_col:      str          = typer.Option("date",    "--date"),
     expense_val:   str          = typer.Option("expense", "--expense"),
 ):
     """Show spending pace vs budget for a month."""
-    from datetime import date as _date
     from calendar import monthrange
+    from datetime import date as _date
     ds          = _ds()
     require_columns(ds, amount_col, date_col)
     schema_info = get_schema(ds)
@@ -233,12 +268,11 @@ def burn_rate(
     year, mon  = _parse_month(month)
     days_total = monthrange(year, mon)[1]
     today      = _date.today()
-    if today.year == year and today.month == mon:
-        days_passed = today.day
-    else:
-        days_passed = days_total
+    # Part-way through the current month, the pace so far is what matters;
+    # for a past month the whole month has elapsed.
+    days_passed = today.day if (today.year, today.month) == (year, mon) else days_total
 
-    type_filter = f' AND "{type_col}" = {lit(expense_val)}' if has_type else ''
+    type_filter = _expense_and(type_col, expense_val, has_type)
     r_spent = run_query(ds, f"""
         SELECT COALESCE(sum("{amount_col}"), 0) AS total FROM data
         WHERE strftime("{date_col}"::DATE, '%Y-%m') = {lit(month)}{type_filter}
@@ -265,8 +299,8 @@ def savings_rate_cmd(
     p_expr = period_expr(date_col, by)
     sql = f"""
         SELECT {p_expr} AS period,
-               sum(CASE WHEN "{type_col}" = {lit(income_val)}  THEN "{amount_col}" ELSE 0 END) AS income,
-               sum(CASE WHEN "{type_col}" = {lit(expense_val)} THEN "{amount_col}" ELSE 0 END) AS expense
+               {_typed_sum(type_col, income_val, amount_col)} AS income,
+               {_typed_sum(type_col, expense_val, amount_col)} AS expense
         FROM data WHERE "{date_col}" IS NOT NULL
         GROUP BY {p_expr} ORDER BY {p_expr}
     """
@@ -290,7 +324,7 @@ def subscriptions(
     require_columns(ds, amount_col, date_col, note_col)
     schema_info = get_schema(ds)
     has_type    = _has_col(schema_info, type_col)
-    type_filter = f' AND "{type_col}" = {lit(expense_val)}' if has_type else ''
+    type_filter = _expense_and(type_col, expense_val, has_type)
     sql = f"""
         WITH monthly AS (
             SELECT
@@ -315,14 +349,15 @@ def subscriptions(
 
 @app.command(name="money-report")
 def money_report(
-    month:        str           = typer.Option("",         "--month",    help="Month YYYY-MM (default: all)"),
+    month:        str           = typer.Option("",         "--month",
+                                              help="Month YYYY-MM (default: all)"),
     type_col:     str           = typer.Option("type",     "--type"),
     amount_col:   str           = typer.Option("amount",   "--amount"),
     date_col:     str           = typer.Option("date",     "--date"),
     category_col: str           = typer.Option("category", "--category-col"),
     income_val:   str           = typer.Option("income",   "--income"),
     expense_val:  str           = typer.Option("expense",  "--expense"),
-    budget_file:  Optional[Path]= typer.Option(None,       "--budget"),
+    budget_file:  Path | None   = typer.Option(None,       "--budget"),
 ):
     """Full money report: summary, expenses by category, cashflow."""
     ds          = _ds()
@@ -330,28 +365,38 @@ def money_report(
     schema_info = get_schema(ds)
     has_type    = _has_col(schema_info, type_col)
 
-    month_filter     = f' AND strftime("{date_col}"::DATE, \'%Y-%m\') = {lit(month)}' if month else ''
-    month_filter_pre = f' WHERE strftime("{date_col}"::DATE, \'%Y-%m\') = {lit(month)}' if month else ' WHERE 1=1'
-    type_exp_filter  = f'{month_filter_pre} AND "{type_col}" = {lit(expense_val)}' if has_type else f'{month_filter_pre} AND "{amount_col}" IS NOT NULL'
+    in_month         = f'strftime("{date_col}"::DATE, \'%Y-%m\') = {lit(month)}'
+    month_filter     = f' AND {in_month}' if month else ''
+    month_filter_pre = f' WHERE {in_month}' if month else ' WHERE 1=1'
+    type_exp_filter  = (month_filter_pre
+                        + _expense_and(type_col, expense_val, has_type)
+                        + ('' if has_type else f' AND "{amount_col}" IS NOT NULL'))
 
     if has_type:
-        r_inc = run_query(ds, f'SELECT COALESCE(sum("{amount_col}"), 0) AS total FROM data WHERE "{type_col}" = {lit(income_val)}{month_filter}')
-        r_exp = run_query(ds, f'SELECT COALESCE(sum("{amount_col}"), 0) AS total FROM data WHERE "{type_col}" = {lit(expense_val)}{month_filter}')
+        r_inc = run_query(ds, f'SELECT COALESCE(sum("{amount_col}"), 0) AS total '
+                               f'FROM data WHERE "{type_col}" = {lit(income_val)}{month_filter}')
+        r_exp = run_query(ds, f'SELECT COALESCE(sum("{amount_col}"), 0) AS total '
+                               f'FROM data WHERE "{type_col}" = {lit(expense_val)}{month_filter}')
         income  = float(r_inc.rows[0]["total"])
         expense = float(r_exp.rows[0]["total"])
     else:
-        r = run_query(ds, f'SELECT COALESCE(sum("{amount_col}"), 0) AS total FROM data WHERE "{amount_col}" IS NOT NULL{month_filter}')
+        r = run_query(ds, f'SELECT COALESCE(sum("{amount_col}"), 0) AS total FROM data '
+                          f'WHERE "{amount_col}" IS NOT NULL{month_filter}')
         income  = 0.0
         expense = float(r.rows[0]["total"])
 
-    r_cat     = run_query(ds, f'SELECT "{category_col}", sum("{amount_col}") AS total FROM data{type_exp_filter} GROUP BY "{category_col}" ORDER BY total DESC LIMIT 15')
+    r_cat     = run_query(ds, f'SELECT "{category_col}", sum("{amount_col}") AS total '
+                              f'FROM data{type_exp_filter} '
+                              f'GROUP BY "{category_col}" ORDER BY total DESC LIMIT 15')
     exp_by_cat = [(str(r[category_col]), float(r["total"])) for r in r_cat.rows]
 
     r_dates   = run_query(ds, f'SELECT min("{date_col}") AS mn, max("{date_col}") AS mx FROM data')
     mn_d, mx_d = r_dates.rows[0]["mn"], r_dates.rows[0]["mx"]
     date_range = (fmt_date(mn_d), fmt_date(mx_d)) if mn_d else None
 
-    r_large = run_query(ds, f'SELECT "{date_col}", "{category_col}", "{amount_col}" FROM data{type_exp_filter} ORDER BY "{amount_col}" DESC LIMIT 5')
+    r_large = run_query(ds, f'SELECT "{date_col}", "{category_col}", "{amount_col}" '
+                            f'FROM data{type_exp_filter} '
+                            f'ORDER BY "{amount_col}" DESC LIMIT 5')
 
     budget_dict = _load_budget(budget_file) if budget_file else None
 
@@ -361,8 +406,8 @@ def money_report(
 
 @app.command()
 def drill(
-    category:      Optional[str] = typer.Argument(None, help="Category value to drill into"),
-    category_opt:  Optional[str] = typer.Option(None,   "--category",
+    category:      str | None = typer.Argument(None, help="Category value to drill into"),
+    category_opt:  str | None = typer.Option(None,   "--category",
                                                 help="Category value (same as the argument)"),
     category_col:  str = typer.Option("category",    "--category-col",
                                       help="Column holding the category"),
@@ -387,10 +432,11 @@ def drill(
     has_type    = _has_col(schema_info, type_col)
     has_subcat  = _has_col(schema_info, subcat_col)
 
-    type_filter = f' AND "{type_col}" = {lit(expense_val)}' if has_type else ''
+    type_filter = _expense_and(type_col, expense_val, has_type)
     where       = f'WHERE "{category_col}" = {lit(category)}{type_filter}'
 
-    r_stats  = run_query(ds, f'SELECT COUNT(*) AS cnt, SUM("{amount_col}") AS total, AVG("{amount_col}") AS avg FROM data {where}')
+    r_stats  = run_query(ds, f'SELECT COUNT(*) AS cnt, SUM("{amount_col}") AS total, '
+                             f'AVG("{amount_col}") AS avg FROM data {where}')
     stats    = r_stats.rows[0] if r_stats.rows else {}
     total    = float(stats.get("total") or 0)
     tx_count = int(stats.get("cnt") or 0)
@@ -398,10 +444,13 @@ def drill(
 
     subcats: list[tuple[str, float]] = []
     if has_subcat:
-        r_sub  = run_query(ds, f'SELECT "{subcat_col}", SUM("{amount_col}") AS t FROM data {where} GROUP BY "{subcat_col}" ORDER BY t DESC')
+        r_sub  = run_query(ds, f'SELECT "{subcat_col}", SUM("{amount_col}") AS t '
+                               f'FROM data {where} GROUP BY "{subcat_col}" ORDER BY t DESC')
         subcats = [(str(r[subcat_col]), float(r["t"])) for r in r_sub.rows]
 
-    r_large  = run_query(ds, f'SELECT "{date_col}", "{subcat_col if has_subcat else category_col}", "{amount_col}" FROM data {where} ORDER BY "{amount_col}" DESC LIMIT {n}')
+    detail   = subcat_col if has_subcat else category_col
+    r_large  = run_query(ds, f'SELECT "{date_col}", "{detail}", "{amount_col}" '
+                             f'FROM data {where} ORDER BY "{amount_col}" DESC LIMIT {n}')
     render_drill(category, total, tx_count, avg, subcats, r_large.rows)
 
 
@@ -418,7 +467,7 @@ def spend_by_weekday(
     require_columns(ds, date_col, amount_col)
     schema_info = get_schema(ds)
     has_type    = _has_col(schema_info, type_col)
-    type_filter = f' AND "{type_col}" = {lit(expense_val)}' if has_type else ''
+    type_filter = _expense_and(type_col, expense_val, has_type)
 
     agg = f'SUM("{amount_col}")' if mode == "total" else f'AVG("{amount_col}")'
     sql = f"""
@@ -443,7 +492,8 @@ def spend_by_weekday(
 @app.command()
 def remaining(
     budget:      float = typer.Option(...,       "--budget", help="Total budget for the month"),
-    month:       str   = typer.Option("",        "--month",  help="Month YYYY-MM (default: current)"),
+    month:       str   = typer.Option("",        "--month",
+                                      help="Month YYYY-MM (default: current)"),
     date_col:    str   = typer.Option("date",    "--date"),
     amount_col:  str   = typer.Option("amount",  "--amount"),
     type_col:    str   = typer.Option("type",    "--type"),
@@ -461,7 +511,7 @@ def remaining(
     if not month:
         month = date.today().strftime("%Y-%m")
 
-    type_filter = f' AND "{type_col}" = {lit(expense_val)}' if has_type else ''
+    type_filter = _expense_and(type_col, expense_val, has_type)
     sql = f"""
         SELECT COALESCE(SUM("{amount_col}"), 0) AS spent
         FROM data
@@ -472,10 +522,7 @@ def remaining(
     y, m     = _parse_month(month)
     days_total  = monthrange(y, m)[1]
     today       = date.today()
-    if today.year == y and today.month == m:
-        days_passed = today.day
-    else:
-        days_passed = days_total
+    days_passed = today.day if (today.year, today.month) == (y, m) else days_total
 
     render_remaining(spent, budget, days_passed, days_total, month_label=month)
 
@@ -494,7 +541,7 @@ def note_analysis(
     require_columns(ds, note_col, amount_col)
     schema_info = get_schema(ds)
     has_type    = _has_col(schema_info, type_col)
-    type_filter = f' AND "{type_col}" = {lit(expense_val)}' if has_type else ''
+    type_filter = _expense_and(type_col, expense_val, has_type)
 
     sql = f"""
         SELECT "{note_col}" AS merchant,
@@ -535,8 +582,8 @@ def forecast(
     if has_type:
         sql = f"""
             SELECT strftime("{date_col}"::DATE, '%Y-%m') AS period,
-                   SUM(CASE WHEN "{type_col}" = {lit(income_val)}  THEN "{amount_col}" ELSE 0 END) AS income,
-                   SUM(CASE WHEN "{type_col}" = {lit(expense_val)} THEN "{amount_col}" ELSE 0 END) AS expense
+                   {_typed_sum(type_col, income_val, amount_col)} AS income,
+                   {_typed_sum(type_col, expense_val, amount_col)} AS expense
             FROM data
             GROUP BY period
             ORDER BY period DESC
@@ -593,7 +640,7 @@ def fixed_variable(
     require_columns(ds, date_col, amount_col, category_col)
     schema_info = get_schema(ds)
     has_type    = _has_col(schema_info, type_col)
-    type_filter = f' AND "{type_col}" = {lit(expense_val)}' if has_type else ''
+    type_filter = _expense_and(type_col, expense_val, has_type)
 
     sql = f"""
         SELECT "{category_col}" AS category,

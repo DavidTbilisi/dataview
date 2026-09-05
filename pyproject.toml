@@ -16,6 +16,7 @@ dv = "dv.main:cli"
 [dependency-groups]
 dev = [
     "pytest>=9.0.3",
+    "ruff>=0.16.6",
 ]
 
 [build-system]
@@ -27,3 +28,32 @@ packages = ["dv"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = [
+    "E",      # pycodestyle errors
+    "F",      # pyflakes: undefined names, unused imports
+    "W",      # pycodestyle warnings: trailing whitespace
+    "I",      # import sorting
+    "UP",     # syntax that is out of date for the target version
+    "B",      # bugbear: mutable defaults, loop-variable capture
+    "C4",     # comprehensions written the long way
+    "SIM",    # needlessly complex conditionals
+    "RUF",
+]
+ignore = [
+    # `typer.Option(...)` in a parameter default is the whole Typer idiom.
+    "B008",
+    # dv draws with box glyphs, arrows and dashes on purpose; flagging them as
+    # confusable with ASCII is exactly backwards for this codebase.
+    "RUF001", "RUF002", "RUF003",
+]
+
+[tool.ruff.lint.per-file-ignores]
+# A dev utility, not shipped code: it imports after setting sys.path, pairs up
+# its console setup lines on purpose, and keeps its SQL literals on one line.
+"scripts/*" = ["E402", "E702", "E501"]

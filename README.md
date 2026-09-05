@@ -1,5 +1,7 @@
 # dv - Personal Terminal DataView
 
+[![CI](https://github.com/DavidTbilisi/dataview/actions/workflows/ci.yml/badge.svg)](https://github.com/DavidTbilisi/dataview/actions/workflows/ci.yml)
+
 Local-first CLI for inspecting, querying, and visualizing structured data in a terminal.
 Powered by DuckDB, rendered with Rich.
 
@@ -388,11 +390,17 @@ dv examples/expenses.csv alias money
 
 ## Development
 
-Run tests:
+Run the tests and the linter - CI runs exactly these, on Python 3.11 through
+3.14:
 
 ```bash
 uv run pytest
+uv run ruff check .
+uv run ruff check . --fix    # for the mechanical ones
 ```
+
+`ruff format` is deliberately not used: this codebase aligns assignments and
+option blocks into columns on purpose, and the formatter would collapse them.
 
 Project layout:
 
@@ -411,5 +419,5 @@ tests/              Unit tests
 - [Typer](https://typer.tiangolo.com/) - CLI framework
 - [Rich](https://github.com/Textualize/rich) - terminal rendering
 - [DuckDB](https://duckdb.org/) - analytics query engine
-- [Pandas](https://pandas.pydata.org/) - normalization helpers
 - [uv](https://github.com/astral-sh/uv) - environment and package management
+- [ruff](https://docs.astral.sh/ruff/) - linting

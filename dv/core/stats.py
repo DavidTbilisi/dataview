@@ -2,7 +2,7 @@ from dataclasses import dataclass
 
 from dv.core.datasource import DataSource
 from dv.core.query import get_connection
-from dv.core.schema import get_schema, SchemaInfo
+from dv.core.schema import SchemaInfo, get_schema
 from dv.core.sql import ident
 from dv.render.common import fmt_date
 

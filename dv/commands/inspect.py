@@ -1,22 +1,23 @@
 """Schema, summary and raw-table inspection commands."""
 
-from typing import Optional
 
 import typer
 
 from dv.app import (
     app,
-    ds as _ds,
     limit_or_default,
+)
+from dv.app import (
+    ds as _ds,
 )
 from dv.core.query import run_query, run_query_capped, run_table_query
 from dv.core.schema import get_schema
 from dv.core.stats import get_summary, numeric_bins
-from dv.render.theme import charset
-from dv.render.table import render_table
-from dv.render.summary import render_describe, render_missing, render_schema, render_summary
 from dv.render.charts import render_bar
 from dv.render.histogram import render_histogram
+from dv.render.summary import render_describe, render_missing, render_schema, render_summary
+from dv.render.table import render_table
+from dv.render.theme import charset
 
 
 @app.command()
@@ -29,7 +30,8 @@ def schema():
 def head(n: int = typer.Option(10, "--lines", "-n", help="Number of rows")):
     """Show first N rows."""
     ds = _ds(stream=True)
-    render_table(run_table_query(ds, limit=n), title=f"{ds.path.name} {charset().emdash} first {n} rows")
+    render_table(run_table_query(ds, limit=n),
+                 title=f"{ds.path.name} {charset().emdash} first {n} rows")
 
 
 @app.command()
@@ -52,12 +54,12 @@ def missing():
 
 @app.command()
 def table(
-    limit: Optional[int] = typer.Option(None, "--limit", "-l"),
-    columns: Optional[str] = typer.Option(None, "--columns", "-c", help="Comma-separated columns"),
-    where: Optional[str] = typer.Option(None, "--where", "-w"),
-    sort: Optional[str] = typer.Option(None, "--sort", "-s"),
+    limit: int | None = typer.Option(None, "--limit", "-l"),
+    columns: str | None = typer.Option(None, "--columns", "-c", help="Comma-separated columns"),
+    where: str | None = typer.Option(None, "--where", "-w"),
+    sort: str | None = typer.Option(None, "--sort", "-s"),
     desc: bool = typer.Option(False, "--desc"),
-    truncate: Optional[int] = typer.Option(40, "--truncate", help="Truncate long text at N chars"),
+    truncate: int | None = typer.Option(40, "--truncate", help="Truncate long text at N chars"),
 ):
     """Show data as a table with optional filters."""
     ds = _ds(stream=True)
@@ -74,7 +76,7 @@ def table(
 @app.command()
 def query(
     sql: str = typer.Argument(..., help="SQL query (use 'data' as table name)"),
-    limit: Optional[int] = typer.Option(None, "--limit", "-l",
+    limit: int | None = typer.Option(None, "--limit", "-l",
                                         help="Maximum rows to render"),
     all_rows: bool = typer.Option(False, "--all",
                                   help="Render every row, however many"),
@@ -105,7 +107,8 @@ def report():
         if col.inferred_type == "text" and 2 <= col.unique <= 25:
             result = run_query(
                 ds,
-                f'SELECT "{col.name}", count(*) as count FROM data GROUP BY "{col.name}" ORDER BY count DESC LIMIT 15',
+                f'SELECT "{col.name}", count(*) as count FROM data '
+                f'GROUP BY "{col.name}" ORDER BY count DESC LIMIT 15',
             )
             render_bar(
                 [(r[col.name], r["count"]) for r in result.rows],

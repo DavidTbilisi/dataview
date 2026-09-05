@@ -35,7 +35,7 @@ def _parse(path: Path) -> Config:
         with open(path) as f:
             data = yaml.safe_load(f) or {}
     except yaml.YAMLError as e:
-        raise DvError(f"Could not parse {path}", hint=str(e).splitlines()[0])
+        raise DvError(f"Could not parse {path}", hint=str(e).splitlines()[0]) from e
     if not isinstance(data, dict):
         raise DvError(f"{path} must contain a mapping at the top level")
 

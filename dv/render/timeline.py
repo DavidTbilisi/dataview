@@ -1,9 +1,10 @@
 from datetime import date, datetime
+
 from rich.text import Text
+
 from dv.render.common import rule
 from dv.render.json_out import emit, json_mode
 from dv.render.theme import charset, console
-
 
 _BAR_STYLE = "cyan"
 _MILESTONE_STYLE = "bold yellow"
@@ -68,7 +69,7 @@ def render_timeline(
     console.print(rule("[bold cyan]timeline[/bold cyan]", style="dim", align="left"))
     console.print()
 
-    for (label, start, end), date_str in zip(events, date_strs):
+    for (label, start, end), date_str in zip(events, date_strs, strict=True):
         is_milestone = start == end
         offset = int((start - global_start).days / total_days * bar_width)
         span = max(1, int((end - start).days / total_days * bar_width))

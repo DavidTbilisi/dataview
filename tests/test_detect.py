@@ -1,4 +1,5 @@
 from pathlib import Path
+
 import pytest
 
 from dv.core.detect import detect_format, make_datasource

@@ -13,7 +13,6 @@ from rich.text import Text
 
 from dv.render.theme import charset, console, date_format, overflow_mode, table_box
 
-
 # ── Parsing ───────────────────────────────────────────────────────────────────
 
 def to_date(value) -> date | None:
@@ -156,7 +155,7 @@ def bar_rows(
     val_w = max(len(s) for s in val_strs)
     w = bar_width(label_w, val_w, gutter=14 if show_pct else 8, requested=width)
 
-    for (label, value), val_str in zip(items, val_strs):
+    for (label, value), val_str in zip(items, val_strs, strict=True):
         line = Text("  ")
         line.append(str(label).ljust(label_w))
         line.append("  ")

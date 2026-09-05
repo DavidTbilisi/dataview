@@ -5,7 +5,7 @@ flat `dv <file> <command>` surface rather than nested command groups.
 """
 
 from pathlib import Path
-from typing import List, Optional, Annotated
+from typing import Annotated
 
 import typer
 
@@ -13,9 +13,9 @@ from dv.core.config import Config, load_config
 from dv.core.datasource import DataSource
 from dv.core.detect import is_glob, make_datasource
 from dv.core.errors import DvError
-from dv.core.stdin import is_stdin, spool_stdin
 from dv.core.query import require_columns, require_numeric
 from dv.core.sql import ident
+from dv.core.stdin import is_stdin, spool_stdin
 from dv.render.json_out import set_json
 from dv.render.theme import console, set_charset, set_date_format
 
@@ -104,24 +104,24 @@ def chart_width(width: int | None) -> int | None:
 @app.callback(invoke_without_command=True)
 def main(
     ctx: typer.Context,
-    file: Annotated[Optional[Path], typer.Argument(help="Input data file, or - to read stdin")] = None,
-    unicode_: Annotated[Optional[bool], typer.Option(
+    file: Annotated[Path | None, typer.Argument(help="Input data file, or - to read stdin")] = None,
+    unicode_: Annotated[bool | None, typer.Option(
         "--unicode/--ascii",
         help="Draw charts with Unicode block glyphs instead of plain ASCII.",
     )] = None,
-    format_: Annotated[Optional[str], typer.Option(
+    format_: Annotated[str | None, typer.Option(
         "--format", "-f",
         help="Read the input as this format instead of guessing from its name.",
     )] = None,
-    also: Annotated[Optional[List[Path]], typer.Option(
+    also: Annotated[list[Path] | None, typer.Option(
         "--also", hidden=True,
         help="Another input file to read as part of the same table.",
     )] = None,
-    table: Annotated[Optional[str], typer.Option(
+    table: Annotated[str | None, typer.Option(
         "--table",
         help="Which table to read from a multi-table SQLite/DuckDB file.",
     )] = None,
-    where: Annotated[Optional[str], typer.Option(
+    where: Annotated[str | None, typer.Option(
         "--where", "-w",
         help="SQL condition every command sees, e.g. --where \"amount > 100\".",
     )] = None,

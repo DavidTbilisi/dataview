@@ -1,10 +1,10 @@
 from datetime import date, datetime, timedelta
 
 from rich.text import Text
+
 from dv.render.common import rule, simple_table
 from dv.render.json_out import emit, json_mode
 from dv.render.theme import charset, console
-
 
 _WEEKDAY_NAMES = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
 _MONTH_ABBR = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
@@ -249,12 +249,14 @@ def render_weekmap(
         mx = max(vals) or 1
         t1, t2, t3 = mx * 0.25, mx * 0.5, mx * 0.75
 
+    ramp = ((0, ".", "dim"), (t1, "+", "green"),
+            (t2, "*", "cyan"), (t3, "#", "yellow"))
+
     def cell(d: date) -> tuple[str, str]:
         v = date_vals.get(d, 0)
-        if v <= 0:  return ".", "dim"
-        if v <= t1: return "+", "green"
-        if v <= t2: return "*", "cyan"
-        if v <= t3: return "#", "yellow"
+        for threshold, glyph, style in ramp:
+            if v <= threshold:
+                return glyph, style
         return charset().density[-1], "bold red"
 
     console.print()
@@ -321,7 +323,9 @@ def render_rolling(
 
     for i, (label, v) in enumerate(items):
         ra = rolling[i]
-        arrow = charset().trend_up if i > 0 and ra > rolling[i - 1] else (charset().trend_down if i > 0 and ra < rolling[i - 1] else "")
+        prev  = rolling[i - 1] if i > 0 else ra
+        arrow = (charset().trend_up if ra > prev
+                 else charset().trend_down if ra < prev else "")
         t.add_row(label, f"{v:,.2f}", f"{ra:,.2f}", arrow)
 
     console.print(t)
@@ -348,7 +352,7 @@ def render_cumulative(
 
     running = 0.0
     bar_w = 20
-    lw = max(len(l) for l, _ in items)
+    lw = max(len(label) for label, _ in items)
     vw = max(len(f"{v:,.2f}") for _, v in items)
     cw = len(f"{total:,.2f}")
 
@@ -517,7 +521,8 @@ def render_compare_periods(
 
         if prev is not None and prev != 0:
             pct = (val - prev) / abs(prev) * 100
-            change = Text(f"+{pct:.1f}%", style="green") if pct >= 0 else Text(f"{pct:.1f}%", style="red")
+            change = (Text(f"+{pct:.1f}%", style="green") if pct >= 0
+                      else Text(f"{pct:.1f}%", style="red"))
         else:
             change = Text(f"{charset().emdash}", style="dim")
 
@@ -674,9 +679,7 @@ def render_sessions(
                     break
                 if bar_len == 1:
                     line[p] = "#"
-                elif i == 0:
-                    line[p] = "|"
-                elif i == bar_len - 1:
+                elif i == 0 or i == bar_len - 1:
                     line[p] = "|"
                 else:
                     inner = i - 1
