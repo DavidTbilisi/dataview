@@ -31,6 +31,9 @@ class SummaryStats:
     duplicate_count: int
     numeric_stats: list[NumericStats]
     date_range: tuple[str, str] | None = None
+    # More than one when the input was a glob: worth stating, since the whole
+    # point of the number is confirming that the pattern matched what you meant.
+    files: int = 1
 
 
 def get_summary(ds: DataSource, schema: SchemaInfo | None = None) -> SummaryStats:
@@ -94,6 +97,7 @@ def get_summary(ds: DataSource, schema: SchemaInfo | None = None) -> SummaryStat
         duplicate_count=duplicate_count,
         numeric_stats=numeric_stats,
         date_range=date_range,
+        files=len(ds.files),
     )
 
 

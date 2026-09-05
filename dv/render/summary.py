@@ -78,6 +78,7 @@ def render_summary(stats: SummaryStats) -> None:
             "format": stats.format,
             "rows": stats.row_count,
             "columns": stats.col_count,
+            "files": stats.files,
             "numeric_columns": stats.numeric_cols,
             "text_columns": stats.text_cols,
             "date_columns": stats.date_cols,
@@ -108,6 +109,8 @@ def render_summary(stats: SummaryStats) -> None:
     ]
     if stats.date_range:
         pairs.insert(2, ("date range", f"{stats.date_range[0]} {charset().arrow} {stats.date_range[1]}"))
+    if stats.files > 1:
+        pairs.insert(0, ("files", f"{stats.files:,}"))
     key_w = max(len(k) for k, _ in pairs)
     for key, val in pairs:
         console.print(f"  [dim]{key.ljust(key_w)}[/dim]  {val}")

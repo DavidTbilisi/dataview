@@ -4,28 +4,71 @@ import duckdb
 
 from dv.core.datasource import DataSource, ResultView
 from dv.core.errors import DvError
-from dv.core.sql import ident, quote_path
+from dv.core.sql import ident, lit, quote_path
 from dv.render.theme import warn
 
 
-def _get_read_expr(ds: DataSource) -> str:
-    p = quote_path(ds.path)
+# Names tried for the column naming each row's source file, in order. The
+# first that does not collide with a column already in the data wins.
+_FILENAME_COLS = ("filename", "_filename")
+
+
+def _paths_literal(ds: DataSource) -> str:
+    """One quoted path, or a SQL list of them for a multi-file input."""
+    paths = ds.paths
+    if len(paths) == 1:
+        return quote_path(paths[0])
+    return "[" + ", ".join(quote_path(p) for p in paths) + "]"
+
+
+def _get_read_expr(ds: DataSource, filename_col: str | None = None) -> str:
+    p = _paths_literal(ds)
     fmt = ds.format
 
+    opts = ""
+    if ds.multi:
+        # Without union_by_name a column missing from the first file is
+        # silently dropped from all of them, which loses data without a word.
+        opts = ", union_by_name=true"
+        if filename_col:
+            opts += f", filename={lit(filename_col)}"
+
     if fmt == "csv":
-        return f"read_csv_auto({p})"
+        return f"read_csv_auto({p}{opts})"
     elif fmt == "tsv":
-        return f"read_csv_auto({p}, delim='\\t')"
+        return f"read_csv_auto({p}, delim='\\t'{opts})"
     elif fmt == "json":
-        return f"read_json_auto({p})"
+        return f"read_json_auto({p}{opts})"
     elif fmt == "ndjson":
-        return f"read_ndjson_auto({p})"
+        return f"read_ndjson_auto({p}{opts})"
     elif fmt == "parquet":
-        return f"read_parquet({p})"
+        return f"read_parquet({p}{opts})"
     elif fmt in ("sqlite", "duckdb"):
         raise ValueError(f"Use attach for {fmt} files")
     else:
         raise ValueError(f"Cannot generate read expression for format: {fmt}")
+
+
+def _multi_file_select(conn: duckdb.DuckDBPyConnection, ds: DataSource) -> str:
+    """A SELECT over every input file, tagged with which file each row came from.
+
+    "which file did this come from" is the first question a multi-file input
+    raises, so the column is always there. DuckDB gives the full path; only the
+    basename is worth showing, and REPLACE swaps it in place.
+    """
+    for col in _FILENAME_COLS:
+        expr = _get_read_expr(ds, filename_col=col)
+        try:
+            # Binds the reader without reading any rows, so a name that
+            # collides with a column in the data is rejected here.
+            conn.execute(f"SELECT * FROM {expr} LIMIT 0")
+        except duckdb.Error:
+            continue
+        c = ident(col)
+        return f"SELECT * REPLACE (parse_filename({c}) AS {c}) FROM {expr}"
+    # Both names are taken by real columns: read the files without the tag
+    # rather than refusing to read them at all.
+    return f"SELECT * FROM {_get_read_expr(ds)}"
 
 
 def get_connection(ds: DataSource) -> duckdb.DuckDBPyConnection:
@@ -48,7 +91,9 @@ def get_connection(ds: DataSource) -> duckdb.DuckDBPyConnection:
     if ds.format in ("sqlite", "duckdb"):
         _attach_database(conn, ds)
     else:
-        _load(conn, ds, f"SELECT * FROM {_get_read_expr(ds)}")
+        select = (_multi_file_select(conn, ds) if ds.multi
+                  else f"SELECT * FROM {_get_read_expr(ds)}")
+        _load(conn, ds, select)
         _warn_if_unsplit(conn, ds)
 
     ds.connection = conn
@@ -84,7 +129,8 @@ def _attach_database(conn: duckdb.DuckDBPyConnection, ds: DataSource) -> None:
     across them. One of them also becomes `data` for the single-table commands:
     the one named by --table, or the only table if the file has just one.
     """
-    conn.execute(f"ATTACH {quote_path(ds.path)} AS src (READ_ONLY)")
+    # paths[0], not path: a glob matching one database expands to the real file.
+    conn.execute(f"ATTACH {quote_path(ds.paths[0])} AS src (READ_ONLY)")
     # An attached database is a *catalog* named 'src'; its tables live in the
     # 'main' schema inside it. Filtering on table_schema found nothing, which
     # made every SQLite and DuckDB file look empty.

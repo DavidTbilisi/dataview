@@ -5,13 +5,13 @@ flat `dv <file> <command>` surface rather than nested command groups.
 """
 
 from pathlib import Path
-from typing import Optional, Annotated
+from typing import List, Optional, Annotated
 
 import typer
 
 from dv.core.config import Config, load_config
 from dv.core.datasource import DataSource
-from dv.core.detect import make_datasource
+from dv.core.detect import is_glob, make_datasource
 from dv.core.errors import DvError
 from dv.core.stdin import is_stdin, spool_stdin
 from dv.core.query import require_columns, require_numeric
@@ -27,6 +27,7 @@ app = typer.Typer(
 )
 
 _file: Path | None = None
+_extra_files: list[Path] = []
 _format: str | None = None
 _table: str | None = None
 _where: str | None = None
@@ -57,14 +58,20 @@ def ds(stream: bool = False) -> DataSource:
         return _source
     if _file is None:
         raise DvError("No input file given", hint="Usage: dv <file> <command>")
-    path, fmt = _file, _format
+    path, fmt, files = _file, _format, None
     if is_stdin(path):
         # A pipe is read once, here, and every command downstream sees a file.
         path, fmt = spool_stdin(fmt)
-    elif not path.exists():
+    elif _extra_files:
+        # The shell already expanded a glob into several arguments.
+        files = [path, *_extra_files]
+        for f in files:
+            if not f.exists():
+                raise DvError(f"File not found: {f}")
+    elif not is_glob(path) and not path.exists():
         raise DvError(f"File not found: {path}")
     _source = make_datasource(path, table=_table, where=_where,
-                              stream=stream, format=fmt)
+                              stream=stream, format=fmt, files=files)
     return _source
 
 
@@ -106,6 +113,10 @@ def main(
         "--format", "-f",
         help="Read the input as this format instead of guessing from its name.",
     )] = None,
+    also: Annotated[Optional[List[Path]], typer.Option(
+        "--also", hidden=True,
+        help="Another input file to read as part of the same table.",
+    )] = None,
     table: Annotated[Optional[str], typer.Option(
         "--table",
         help="Which table to read from a multi-table SQLite/DuckDB file.",
@@ -120,7 +131,7 @@ def main(
     )] = False,
 ):
     """dv <file> <command> [options]"""
-    global _file, _format, _table, _where, _config, _source
+    global _file, _extra_files, _format, _table, _where, _config, _source
     # One process normally runs one command, but tests (and any future
     # interactive mode) invoke the app repeatedly: without this the cached
     # source from the previous run would answer for the new file.
@@ -138,6 +149,7 @@ def main(
 
     if file is not None:
         _file = file
+    _extra_files = list(also or [])
     _format = format_
     _table = table
     _where = where

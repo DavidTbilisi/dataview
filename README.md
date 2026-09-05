@@ -76,6 +76,34 @@ dv reads its input several times - schema, then the query, then the aggregates
 - so a pipe is spooled to a temporary file first. It is streamed there in
 chunks and deleted on exit, so piping something larger than memory is fine.
 
+### Many files at once
+
+A pattern in place of the filename reads every file it matches as one table:
+
+```bash
+dv 'logs/2026-*.csv' summary
+dv 'exports/**/*.parquet' group-by category --sum amount
+dv logs/*.csv bar level          # unquoted works too; the shell expands it
+```
+
+Files are read in sorted order, so `2026-01` comes before `2026-02`. Every row
+carries a `filename` column naming the file it came from, which is usually the
+first thing you want to know:
+
+```bash
+dv 'logs/*.csv' group-by filename --count
+dv 'logs/*.csv' table --where "filename = 'jan.csv'"
+```
+
+Columns are matched by name, so a file with an extra column contributes it and
+the others read `NULL` there - nothing is dropped for not being in the first
+file. `summary` reports how many files it read, so you can check the pattern
+caught what you meant. Every file has to be the same format; mixing them is an
+error that says which are which.
+
+(If your data already has a `filename` column, the tag is called `_filename`
+instead so yours is left alone.)
+
 ### JSON output
 
 `--json` makes every command that renders data emit that data instead of

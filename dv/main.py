@@ -57,35 +57,70 @@ _GLOBAL_ONLY = {"--json", "--unicode", "--ascii", "--table", "--format"}
 
 # Global options whose value is the next argument, needed to tell an option's
 # value apart from the input file when scanning argv.
-_GLOBAL_VALUE_OPTS = {"--table", "--where", "-w", "--format", "-f"}
+_GLOBAL_VALUE_OPTS = {"--table", "--where", "-w", "--format", "-f", "--also"}
 
 
 def _command_names() -> set[str]:
     return {c.name or c.callback.__name__ for c in app.registered_commands}
 
 
-def _default_to_stdin() -> None:
-    """`cat f.csv | dv summary` means the same as `cat f.csv | dv - summary`.
+def _input_positions() -> list[int]:
+    """Indices in argv of the input-file arguments: the positionals before the command.
 
-    Only when the first positional argument is itself a command name, so a real
-    file called `summary` would still win - and only when stdin is a pipe, so
-    a plain `dv summary` at a prompt keeps its "no input file" advice.
+    Everything from the command name onwards belongs to the command, so the
+    scan stops there. Global options and their values are skipped, which is
+    what tells `--where x` apart from a filename.
     """
-    if sys.stdin.isatty():
-        return
     names = _command_names()
-    args = sys.argv[1:]
-    i = 0
-    while i < len(args):
-        arg = args[i]
+    found: list[int] = []
+    i = 1
+    while i < len(sys.argv):
+        arg = sys.argv[i]
         if arg in _GLOBAL_VALUE_OPTS:
             i += 2                      # option and its separate value
         elif arg.startswith("-") and arg != STDIN_ARG:
             i += 1                      # a flag, or --opt=value
+        elif arg in names:
+            return found
         else:
-            if arg in names:
-                sys.argv.insert(i + 1, STDIN_ARG)
-            return
+            found.append(i)
+            i += 1
+    return found
+
+
+def _collect_extra_files() -> None:
+    """`dv logs/*.csv summary`, once the shell has expanded it into many files.
+
+    The grammar has room for one input, so the rest move to the `--also` option
+    the callback carries. Only when they really are files: otherwise
+    `dv f.csv nosuchcommand` would report a missing file instead of a missing
+    command.
+    """
+    positions = _input_positions()
+    if len(positions) < 2:
+        return
+    extra = [sys.argv[i] for i in positions[1:]]
+    if not any(os.path.exists(p) for p in extra):
+        return
+    for i in reversed(positions[1:]):
+        del sys.argv[i]
+    for path in reversed(extra):
+        sys.argv[1:1] = ["--also", path]
+
+
+def _default_to_stdin() -> None:
+    """`cat f.csv | dv summary` means the same as `cat f.csv | dv - summary`.
+
+    Only when no input file was given at all, so a real file called `summary`
+    would still win - and only when stdin is a pipe, so a plain `dv summary` at
+    a prompt keeps its "no input file" advice.
+    """
+    if sys.stdin.isatty() or _input_positions():
+        return
+    names = _command_names()
+    at = next((i for i, a in enumerate(sys.argv) if i and a in names), None)
+    if at is not None:
+        sys.argv.insert(at, STDIN_ARG)
 
 
 def _check_global_flag_position() -> None:
@@ -108,6 +143,7 @@ def _run() -> None:
     Typer exits by raising SystemExit even on success, so the document is
     written from the handler rather than after the call.
     """
+    _collect_extra_files()
     _default_to_stdin()
     _check_global_flag_position()
     try:
