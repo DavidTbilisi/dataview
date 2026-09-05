@@ -45,6 +45,8 @@ def make_datasource(
     path: Path,
     table: str | None = None,
     where: str | None = None,
+    stream: bool = False,
 ) -> DataSource:
     fmt = detect_format(path)
-    return DataSource(path=path, format=fmt, source_table=table, where=where)
+    return DataSource(path=path, format=fmt, source_table=table,
+                      where=where, stream=stream)

@@ -28,7 +28,7 @@ def schema():
 @app.command()
 def head(n: int = typer.Option(10, "--lines", "-n", help="Number of rows")):
     """Show first N rows."""
-    ds = _ds()
+    ds = _ds(stream=True)
     render_table(run_table_query(ds, limit=n), title=f"{ds.path.name} {charset().emdash} first {n} rows")
 
 
@@ -60,7 +60,7 @@ def table(
     truncate: Optional[int] = typer.Option(40, "--truncate", help="Truncate long text at N chars"),
 ):
     """Show data as a table with optional filters."""
-    ds = _ds()
+    ds = _ds(stream=True)
     limit = limit_or_default(limit, 50)
     cols = columns.split(",") if columns else None
     render_table(
@@ -80,7 +80,9 @@ def query(
                                   help="Render every row, however many"),
 ):
     """Run a SQL query against the file."""
-    ds = _ds()
+    # A capped query reads once with a LIMIT DuckDB can push down; --all reads
+    # every row anyway, so it wants the materialized table.
+    ds = _ds(stream=not all_rows)
     if all_rows:
         result = run_query(ds, sql)
     else:

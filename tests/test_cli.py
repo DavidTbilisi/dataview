@@ -209,6 +209,65 @@ def test_drill_without_category_errors():
         runner.invoke(app, [MONEY, "drill"], catch_exceptions=False)
 
 
+# --- streamed reads -----------------------------------------------------------
+
+
+def _registered_kind(argv) -> str:
+    """Whether `data` ended up a VIEW or a BASE TABLE for this invocation."""
+    import dv.app
+    run(argv)
+    conn = dv.app._source.connection
+    return conn.execute(
+        "SELECT table_type FROM information_schema.tables WHERE table_name = 'data'"
+    ).fetchone()[0]
+
+
+@pytest.mark.parametrize("argv", [
+    [EXPENSES, "head", "-n", "3"],
+    [EXPENSES, "table", "--limit", "5"],
+    [EXPENSES, "query", "SELECT * FROM data"],
+])
+def test_peek_commands_use_a_view(argv):
+    """A bounded read must not parse the whole file first."""
+    assert _registered_kind(argv) == "VIEW"
+
+
+@pytest.mark.parametrize("argv", [
+    [EXPENSES, "summary"],
+    [EXPENSES, "schema"],
+    [EXPENSES, "bar", "category"],
+    [EXPENSES, "query", "SELECT * FROM data", "--all"],
+])
+def test_scanning_commands_materialize(argv):
+    """Anything that queries the source repeatedly still parses it once."""
+    assert _registered_kind(argv) == "BASE TABLE"
+
+
+def test_streamed_head_matches_materialized_head():
+    """The view path returns the same rows as the table path."""
+    streamed = run([EXPENSES, "head", "-n", "5"]).output
+    materialized = run([EXPENSES, "query", "SELECT * FROM data LIMIT 5", "--all"]).output
+    for value in ("food", "2026-01-03", "85.5"):
+        assert value in streamed and value in materialized
+
+
+def test_streamed_read_honours_where():
+    out = run(["--where", "category = 'food'", EXPENSES, "table", "--limit", "50"]).output
+    assert "food" in out and "transport" not in out
+
+
+def test_streamed_read_on_attached_database(tmp_path):
+    db = tmp_path / "one.db"
+    _make_sqlite(db, {"only_table": ""})
+    assert "only_table-row" in run([str(db), "head"]).output
+
+
+def test_streamed_read_still_validates_columns():
+    with pytest.raises(DvError, match="Unknown column"):
+        runner.invoke(app, [EXPENSES, "table", "--sort", "amont"],
+                      catch_exceptions=False)
+
+
 # --- query row cap ------------------------------------------------------------
 
 

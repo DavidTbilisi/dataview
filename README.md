@@ -232,12 +232,26 @@ by the size of the chart, not the size of the file. On a 3 million row CSV:
 
 | Command | Before | After |
 |---------|--------|-------|
-| `query "select * from data"` | did not finish | 0.7s |
+| `query "select * from data"` | did not finish | 0.6s |
 | `spark amount` | 36s, 4.1 GB | 0.5s, 296 MB |
 | `hist amount` | 3.2s, 1.2 GB | 0.6s, 271 MB |
+| `head -n 3` | 0.59s, 265 MB | 0.36s, 107 MB |
+
+Commands that only need a peek at the start of the file - `head`, `table` and a
+capped `query` - register the input as a view, so DuckDB pushes their `LIMIT`
+into the scan instead of parsing every row first. Commands that query the source
+repeatedly still parse it once into memory.
 
 Small inputs are unaffected: `scatter` still plots every point exactly below
 20,000 rows, and chart output is byte-for-byte what it was.
+
+Converting a file you query often to Parquet is the biggest single win - DuckDB
+aggregates over it about 30x faster than over the equivalent CSV:
+
+```bash
+dv data.csv query "COPY data TO 'data.parquet' (FORMAT PARQUET)" --all
+dv data.parquet summary
+```
 
 ## Supported formats
 

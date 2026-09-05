@@ -13,6 +13,10 @@ class DataSource:
     # A global --where, applied while `data` is being loaded so that every
     # command sees the filtered rows without knowing about the flag.
     where: str | None = None
+    # Register `data` as a view rather than a materialized table. Set by the
+    # commands that read the file once and bounded, so DuckDB can push their
+    # LIMIT into the scan instead of parsing the whole file first.
+    stream: bool = False
     # Cached DuckDB connection, populated on first query. Not part of equality
     # or the constructor signature.
     connection: Any = field(default=None, init=False, repr=False, compare=False)

@@ -41,8 +41,14 @@ def where() -> str | None:
     return _where
 
 
-def ds() -> DataSource:
-    """The input DataSource, created once per run."""
+def ds(stream: bool = False) -> DataSource:
+    """The input DataSource, created once per run.
+
+    Pass `stream=True` from a command that reads the file once and bounded - a
+    peek at the first rows rather than a scan. It registers `data` as a view so
+    DuckDB can push the LIMIT into the scan; anything that queries the source
+    repeatedly wants the default materialized table instead.
+    """
     global _source
     if _source is not None:
         return _source
@@ -50,7 +56,7 @@ def ds() -> DataSource:
         raise DvError("No input file given", hint="Usage: dv <file> <command>")
     if not _file.exists():
         raise DvError(f"File not found: {_file}")
-    _source = make_datasource(_file, table=_table, where=_where)
+    _source = make_datasource(_file, table=_table, where=_where, stream=stream)
     return _source
 
 
