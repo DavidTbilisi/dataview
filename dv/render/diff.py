@@ -1,4 +1,4 @@
-from dv.render.common import rule, simple_table
+from dv.render.common import section, simple_table, subsection
 from dv.render.json_out import emit, json_mode
 from dv.render.theme import console
 
@@ -55,17 +55,14 @@ def render_diff(
         return
 
     _title = title or "DIFF"
-    console.print()
-    console.print(rule(f"[bold]{_title}[/bold]", style="dim", align="left"))
-    console.print()
+    section(_title)
     console.print(f"  [green]Added:[/green]    {len(added_keys)}")
     console.print(f"  [red]Removed:[/red]   {len(removed_keys)}")
     console.print(f"  [yellow]Changed:[/yellow]   {len(changed)}")
     console.print()
 
     if changed:
-        console.print(rule("[dim]changed[/dim]", style="dim", align="left"))
-        console.print()
+        subsection("changed")
         t = simple_table()
         t.add_column(key,      style="bold")
         t.add_column("field")
@@ -80,8 +77,7 @@ def render_diff(
     non_key = [c for c in columns if c != key][:5]
 
     if added_keys:
-        console.print(rule("[dim]added[/dim]", style="dim", align="left"))
-        console.print()
+        subsection("added")
         t = simple_table()
         t.add_column(key, style="green bold")
         for c in non_key:
@@ -93,8 +89,7 @@ def render_diff(
         console.print()
 
     if removed_keys:
-        console.print(rule("[dim]removed[/dim]", style="dim", align="left"))
-        console.print()
+        subsection("removed")
         t = simple_table()
         t.add_column(key, style="red bold")
         for c in non_key:

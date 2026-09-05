@@ -1,7 +1,7 @@
 from rich.text import Text
 
 from dv.core.stats import BoxStats
-from dv.render.common import kv_pairs, rule
+from dv.render.common import kv_pairs, section
 from dv.render.json_out import emit, json_mode
 from dv.render.theme import charset, console
 
@@ -39,9 +39,7 @@ def render_box(
         return f"{v:g}"
 
     if title:
-        console.print()
-        console.print(rule(f"[bold]{title}[/bold]", style="dim", align="left"))
-        console.print()
+        section(title)
 
     kv_pairs([("min", fmt(mn)), ("q1", fmt(q1)), ("median", fmt(med)),
               ("q3", fmt(q3)), ("max", fmt(mx))])

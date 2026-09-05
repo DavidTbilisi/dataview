@@ -62,8 +62,15 @@ def threshold_style(value: float, good: float, warn: float, invert: bool = False
 # ── Bars ──────────────────────────────────────────────────────────────────────
 
 def bar(value: float, max_value: float, width: int) -> str:
-    """A proportional bar in the active charset."""
-    return charset().bar_of(value, max_value, width)
+    """A proportional bar in the active charset.
+
+    A non-zero value always gets at least one glyph: rounding a small share
+    down to an empty bar reads as "no data" rather than "a little".
+    """
+    drawn = charset().bar_of(value, max_value, width)
+    if not drawn and value and max_value > 0:
+        return charset().bar
+    return drawn
 
 
 def gauge(fraction: float, width: int) -> str:
@@ -91,13 +98,28 @@ def rule(title: str = "", style: str = "dim", align: str = "left") -> Rule:
     return Rule(title, style=style, align=align, characters=charset().h)
 
 
-def section(title: str, subtitle: str = "") -> None:
-    """A left-aligned rule used as a section header."""
-    heading = f"[bold]{title}[/bold]"
+def section(title: str, subtitle: str = "", style: str = "bold") -> None:
+    """A left-aligned rule used as a section header.
+
+    `subtitle` is the dim text after the title - the input filename, for the
+    commands that name their source. `style` is "bold cyan" for the four
+    inspect views, which mark themselves out from the analysis commands.
+    """
+    heading = f"[{style}]{title}[/{style}]"
     if subtitle:
         heading += f"  [dim]{subtitle}[/dim]"
     console.print()
     console.print(rule(heading))
+    console.print()
+
+
+def subsection(title: str) -> None:
+    """A dim rule naming a block *inside* a section, with no blank line above it.
+
+    Sections separate; subsections group. The caller supplies its own leading
+    blank when one is wanted, because most of these follow a table directly.
+    """
+    console.print(rule(f"[dim]{title}[/dim]"))
     console.print()
 
 

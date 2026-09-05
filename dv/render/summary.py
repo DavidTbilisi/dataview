@@ -2,7 +2,7 @@ from pathlib import Path
 
 from dv.core.schema import SchemaInfo
 from dv.core.stats import SummaryStats
-from dv.render.common import rule, simple_table_heavy
+from dv.render.common import kv_pairs, section, simple_table_heavy, subsection
 from dv.render.json_out import emit, json_mode
 from dv.render.theme import charset, console
 
@@ -37,10 +37,7 @@ def render_schema(schema: SchemaInfo) -> None:
         return
 
     name = Path(schema.path).name
-    console.print()
-    console.print(rule(f"[bold cyan]schema[/bold cyan]  [dim]{name}[/dim]",
-                       style="dim", align="left"))
-    console.print()
+    section("schema", name, style="bold cyan")
 
     table = simple_table_heavy()
     table.add_column("column",    style="bold")
@@ -94,10 +91,7 @@ def render_summary(stats: SummaryStats) -> None:
         return
 
     name = Path(stats.path).name
-    console.print()
-    console.print(rule(f"[bold cyan]summary[/bold cyan]  [dim]{name}[/dim]",
-                       style="dim", align="left"))
-    console.print()
+    section("summary", name, style="bold cyan")
 
     pairs = [
         ("rows",          f"{stats.row_count:,}"),
@@ -114,9 +108,7 @@ def render_summary(stats: SummaryStats) -> None:
                          f"{stats.date_range[0]} {charset().arrow} {stats.date_range[1]}"))
     if stats.files > 1:
         pairs.insert(0, ("files", f"{stats.files:,}"))
-    key_w = max(len(k) for k, _ in pairs)
-    for key, val in pairs:
-        console.print(f"  [dim]{key.ljust(key_w)}[/dim]  {val}")
+    kv_pairs(pairs)
 
     if stats.numeric_stats:
         _numeric_table(stats)
@@ -137,10 +129,7 @@ def render_missing(schema: SchemaInfo) -> None:
     from dv.render.charts import _bar_text
 
     name = Path(schema.path).name
-    console.print()
-    console.print(rule(f"[bold cyan]missing[/bold cyan]  [dim]{name}[/dim]",
-                       style="dim", align="left"))
-    console.print()
+    section("missing", name, style="bold cyan")
 
     cols_with_missing = [c for c in schema.columns if c.missing > 0]
     if not cols_with_missing:
@@ -166,10 +155,10 @@ def render_missing(schema: SchemaInfo) -> None:
     console.print()
 
 
-def _numeric_table(stats: SummaryStats) -> None:
-    console.print()
-    console.print(rule("[dim]numeric[/dim]", style="dim", align="left"))
-    console.print()
+def _numeric_table(stats: SummaryStats, lead: bool = True) -> None:
+    if lead:
+        console.print()
+    subsection("numeric")
 
     table = simple_table_heavy()
     table.add_column("column",  style="bold")
@@ -202,16 +191,12 @@ def render_describe(stats: SummaryStats) -> None:
         ])
         return
 
-    """Numeric column statistics only — the NUMERIC SUMMARY view."""
-    name = Path(stats.path).name
-    console.print()
-    console.print(rule(f"[bold]describe[/bold]  [dim]{name}[/dim]", style="dim", align="left"))
+    section("describe", Path(stats.path).name)
 
     if not stats.numeric_stats:
-        console.print()
         console.print("  [dim]No numeric columns[/dim]")
         console.print()
         return
 
-    _numeric_table(stats)
+    _numeric_table(stats, lead=False)
     console.print()

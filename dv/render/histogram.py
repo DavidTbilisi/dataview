@@ -2,7 +2,7 @@ from rich.text import Text
 
 from dv.core.stats import Bin
 from dv.render.charts import _bar_text
-from dv.render.common import rule
+from dv.render.common import section
 from dv.render.json_out import emit, json_mode
 from dv.render.theme import charset, console
 
@@ -42,9 +42,7 @@ def render_histogram(
     bar_width = width or max(10, term_width - label_width - count_width - 8)
 
     if title:
-        console.print()
-        console.print(rule(f"[bold]{title}[/bold]", style="dim", align="left"))
-        console.print()
+        section(title)
 
     for label, count, count_str in zip(labels, bucket_counts, count_strs, strict=True):
         line = Text("  ")

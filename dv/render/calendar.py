@@ -3,7 +3,7 @@ from datetime import date
 
 from rich.text import Text
 
-from dv.render.common import rule
+from dv.render.common import section
 from dv.render.json_out import emit, json_mode
 from dv.render.theme import console
 
@@ -95,9 +95,7 @@ def render_calendar(
     col_w = max(max_cell, 3) + 4  # data chars + separator
 
     _title = title or "CALENDAR"
-    console.print()
-    console.print(rule(f"[bold]{_title}[/bold]", style="dim", align="left"))
-    console.print()
+    section(_title)
 
     label_w = 3
     sep = "  "
