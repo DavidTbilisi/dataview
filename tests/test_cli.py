@@ -235,6 +235,19 @@ def test_drill_without_category_errors():
         runner.invoke(app, [MONEY, "drill"], catch_exceptions=False)
 
 
+@pytest.mark.parametrize("cmd", ["income-expense", "savings-rate", "money-summary",
+                                 "spend-by-weekday", "fixed-variable", "forecast"])
+def test_money_commands_without_a_type_column(cmd):
+    """A file with no income/expense column is all spending, not an error.
+
+    expenses.csv has no `type`, and income-expense and savings-rate used to
+    build their CASE WHEN over it unconditionally - so they died with a binder
+    error on exactly the shape of file dv's own examples ship.
+    """
+    out = run([EXPENSES, cmd]).output
+    assert out.strip() and "not found" not in out
+
+
 # --- streamed reads -----------------------------------------------------------
 
 
