@@ -12,7 +12,7 @@ from dv.app import (
 )
 from dv.core.query import require_columns, run_query
 from dv.core.schema import get_schema
-from dv.core.sql import agg_expr, ident
+from dv.core.sql import agg_expr, ident, order_by_agg
 from dv.render.charts import render_bar
 from dv.render.table import render_pivot, render_table, render_top
 
@@ -53,7 +53,7 @@ def group_by(
     c = ident(column)
     agg, agg_col, _ = agg_expr(sum_col, avg_col)
     sql = (f"SELECT {c}, {agg} FROM data GROUP BY {c} "
-           f"ORDER BY {ident(agg_col)} DESC LIMIT {int(limit)}")
+           f"{order_by_agg(agg_col, column)} LIMIT {int(limit)}")
 
     result = run_query(ds, sql)
     render_table(result, title=f"group-by {column}")
@@ -145,6 +145,6 @@ def top(
     limit = limit_or_default(limit, 10)
     require_columns(ds, column, by)
     sql = (f'SELECT "{column}", sum("{by}") as total FROM data '
-           f'GROUP BY "{column}" ORDER BY total DESC LIMIT {limit}')
+           f'GROUP BY "{column}" {order_by_agg("total", column)} LIMIT {limit}')
     result = run_query(ds, sql)
     render_top(result.rows, column_name=column, value_name=by)

@@ -15,7 +15,7 @@ from dv.app import (
 from dv.core.errors import DvError
 from dv.core.query import require_columns, run_query
 from dv.core.schema import get_schema
-from dv.core.sql import lit, period_expr
+from dv.core.sql import lit, order_by_agg, order_by_row, period_expr
 from dv.render.common import fmt_date
 from dv.render.money import (
     render_budget,
@@ -170,7 +170,7 @@ def expenses_by(
     has_type    = _has_col(schema_info, type_col)
     where       = _expense_where(type_col, expense_val, amount_col, has_type)
     sql         = (f'SELECT "{column}", sum("{amount_col}") AS total FROM data {where} '
-                   f'GROUP BY "{column}" ORDER BY total DESC LIMIT {limit}')
+                   f'GROUP BY "{column}" {order_by_agg("total", column)} LIMIT {limit}')
     result      = run_query(ds, sql)
     items       = [(str(r[column]), float(r["total"])) for r in result.rows]
     render_expenses_by(items, title=f"EXPENSES BY {column.upper()}")
@@ -217,7 +217,7 @@ def largest(
     has_type    = _has_col(schema_info, type_col)
     where       = _expense_where(type_col, expense_val, amount_col, has_type)
     result      = run_query(
-        ds, f'SELECT * FROM data {where} ORDER BY "{amount_col}" DESC LIMIT {limit}')
+        ds, f'SELECT * FROM data {where} {order_by_row(amount_col)} LIMIT {limit}')
     render_table(result, title="LARGEST TRANSACTIONS")
 
 
@@ -236,7 +236,7 @@ def budget(
     has_type    = _has_col(schema_info, type_col)
     where       = _expense_where(type_col, expense_val, amount_col, has_type)
     sql         = (f'SELECT "{column}", sum("{amount_col}") AS total FROM data {where} '
-                   f'GROUP BY "{column}" ORDER BY total DESC')
+                   f'GROUP BY "{column}" {order_by_agg("total", column)}')
     result      = run_query(ds, sql)
     items       = [(str(r[column]), float(r["total"])) for r in result.rows]
     budget_dict = _load_budget(budget_file)
@@ -339,7 +339,7 @@ def subscriptions(
         FROM monthly
         GROUP BY name
         HAVING count(DISTINCT month) >= {min_months}
-        ORDER BY months DESC, amount DESC
+        ORDER BY months DESC, amount DESC, name
     """
     result = run_query(ds, sql)
     items  = [{"name": r["name"], "amount": r["amount"], "months": r["months"]}
@@ -387,7 +387,8 @@ def money_report(
 
     r_cat     = run_query(ds, f'SELECT "{category_col}", sum("{amount_col}") AS total '
                               f'FROM data{type_exp_filter} '
-                              f'GROUP BY "{category_col}" ORDER BY total DESC LIMIT 15')
+                              f'GROUP BY "{category_col}" '
+                              f'{order_by_agg("total", category_col)} LIMIT 15')
     exp_by_cat = [(str(r[category_col]), float(r["total"])) for r in r_cat.rows]
 
     r_dates   = run_query(ds, f'SELECT min("{date_col}") AS mn, max("{date_col}") AS mx FROM data')
@@ -396,7 +397,7 @@ def money_report(
 
     r_large = run_query(ds, f'SELECT "{date_col}", "{category_col}", "{amount_col}" '
                             f'FROM data{type_exp_filter} '
-                            f'ORDER BY "{amount_col}" DESC LIMIT 5')
+                            f'{order_by_row(amount_col)} LIMIT 5')
 
     budget_dict = _load_budget(budget_file) if budget_file else None
 
@@ -445,12 +446,13 @@ def drill(
     subcats: list[tuple[str, float]] = []
     if has_subcat:
         r_sub  = run_query(ds, f'SELECT "{subcat_col}", SUM("{amount_col}") AS t '
-                               f'FROM data {where} GROUP BY "{subcat_col}" ORDER BY t DESC')
+                               f'FROM data {where} GROUP BY "{subcat_col}" '
+                               f'{order_by_agg("t", subcat_col)}')
         subcats = [(str(r[subcat_col]), float(r["t"])) for r in r_sub.rows]
 
     detail   = subcat_col if has_subcat else category_col
     r_large  = run_query(ds, f'SELECT "{date_col}", "{detail}", "{amount_col}" '
-                             f'FROM data {where} ORDER BY "{amount_col}" DESC LIMIT {n}')
+                             f'FROM data {where} {order_by_row(amount_col)} LIMIT {n}')
     render_drill(category, total, tx_count, avg, subcats, r_large.rows)
 
 
@@ -551,7 +553,7 @@ def note_analysis(
         FROM data
         WHERE "{amount_col}" IS NOT NULL{type_filter}
         GROUP BY "{note_col}"
-        ORDER BY total DESC
+        {order_by_agg("total", note_col)}
         LIMIT {n}
     """
     rows  = run_query(ds, sql).rows
@@ -655,7 +657,7 @@ def fixed_variable(
             GROUP BY "{category_col}", month
         ) sub
         GROUP BY "{category_col}"
-        ORDER BY stddev_monthly / NULLIF(AVG(monthly_total), 0)
+        ORDER BY stddev_monthly / NULLIF(AVG(monthly_total), 0), "{category_col}"
     """
     rows = run_query(ds, sql).rows
     fixed    = []

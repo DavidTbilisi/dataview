@@ -19,7 +19,7 @@ from dv.core.detect import make_datasource
 from dv.core.errors import DvError
 from dv.core.query import require_columns, run_query
 from dv.core.schema import get_schema
-from dv.core.sql import agg_expr, ident
+from dv.core.sql import agg_expr, ident, order_by_agg
 from dv.core.stats import get_summary
 from dv.render.charts import render_bar
 from dv.render.diff import render_diff
@@ -65,7 +65,7 @@ def _report_data(ds):
             result = run_query(
                 ds,
                 f"SELECT {ident(col.name)}, count(*) AS count FROM data "
-                f"GROUP BY {ident(col.name)} ORDER BY count DESC LIMIT 20",
+                f"GROUP BY {ident(col.name)} {order_by_agg('count', col.name)} LIMIT 20",
             )
             chart_rows.append((col.name, [(r[col.name], r["count"]) for r in result.rows]))
             break
@@ -122,7 +122,7 @@ def alias(name: str = typer.Argument(..., help="Alias name defined in .dv.yml"))
     result = run_query(
         ds,
         f"SELECT {g}, {agg} FROM data GROUP BY {g} "
-        f"ORDER BY {ident(value_col)} DESC LIMIT {int(limit)}",
+        f"{order_by_agg(value_col, group_col)} LIMIT {int(limit)}",
     )
     render_table(result, title=f"alias: {name}")
     if spec.get("bar", True) and result.rows:
