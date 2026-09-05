@@ -255,11 +255,10 @@ All commands degrade gracefully when the `type` column is absent.
 
 - `money-summary` — income, expenses, saved, savings rate, cashflow status
 - `expenses-by` — bar chart of expenses by any column (default: category)
-- `income-expense` — monthly income vs expense table with saved and rate
+- `income-expense` — income vs expense per period, with savings rate and trend
 - `largest` — top N transactions by amount
 - `budget` — actual vs budgeted per category (reads a `--budget <file>.yml`)
-- `burn-rate` — daily pace vs budget with projected end-of-month spend
-- `savings-rate` — savings rate trend table with sparkline
+- `burn-rate` — daily pace vs budget, projected spend, and safe daily allowance
 - `subscriptions` — auto-detect recurring payments (appear in 2+ months)
 - `money-report` — full report: summary + category bars + budget + largest + cashflow
 
@@ -270,7 +269,6 @@ dv examples/money.csv income-expense
 dv examples/money.csv largest --limit 10
 dv examples/money.csv budget category --budget examples/budget.yml
 dv examples/money.csv burn-rate --month 2026-06 --budget 1500
-dv examples/money.csv savings-rate
 dv examples/money.csv subscriptions --min-months 2
 dv examples/money.csv money-report --month 2026-06
 ```

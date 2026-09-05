@@ -1,6 +1,15 @@
 from rich.text import Text
 
-from dv.render.common import bar, bar_rows, gauge, kv_pairs, section, simple_table, subsection
+from dv.render.common import (
+    bar,
+    bar_rows,
+    gauge,
+    kv_pairs,
+    section,
+    simple_table,
+    subsection,
+    threshold_style,
+)
 from dv.render.json_out import emit, json_mode
 from dv.render.theme import charset, console
 
@@ -89,7 +98,10 @@ def render_income_expense(
     rows: list[dict],
     title: str = "INCOME VS EXPENSE",
 ) -> None:
-    """rows: [{"period": ..., "income": ..., "expense": ...}]"""
+    """Income against expense per period, with the savings rate and its trend.
+
+    rows: [{"period": ..., "income": ..., "expense": ...}]
+    """
     if json_mode():
         emit("rows", rows)
         return
@@ -105,14 +117,16 @@ def render_income_expense(
     t.add_column("income",  justify="right", style="green")
     t.add_column("expense", justify="right", style="red")
     t.add_column("saved",   justify="right")
-    t.add_column("rate",    justify="right", style="cyan")
+    t.add_column("rate",    justify="right")
 
     total_income = total_expense = 0.0
+    rates: list[float] = []
     for r in rows:
         inc  = float(r.get("income") or 0)
         exp  = float(r.get("expense") or 0)
         saved = inc - exp
         rate  = saved / inc * 100 if inc > 0 else 0.0
+        rates.append(rate)
         total_income  += inc
         total_expense += exp
         t.add_row(
@@ -120,7 +134,8 @@ def render_income_expense(
             f"{inc:,.2f}",
             f"{exp:,.2f}",
             Text(f"{saved:,.2f}", style="green" if saved >= 0 else "red"),
-            f"{rate:.1f}%",
+            Text(f"{rate:.1f}%",
+                 style="green" if rate >= 20 else ("yellow" if rate >= 0 else "red")),
         )
 
     total_saved = total_income - total_expense
@@ -133,6 +148,18 @@ def render_income_expense(
         Text(f"{total_rate:.1f}%",    style="bold cyan"),
     )
     console.print(t)
+
+    if rates:
+        avg_rate = sum(rates) / len(rates)
+        low, high = min(rates), max(rates)
+        span = high - low or 1
+        glyphs = charset().spark
+        trend = "".join(glyphs[min(len(glyphs) - 1,
+                                   int((r - low) / span * (len(glyphs) - 1)))]
+                        for r in rates)
+        console.print()
+        console.print(f"  [dim]avg rate:[/dim]  [cyan]{avg_rate:.1f}%[/cyan]  "
+                      f"[dim]trend: {trend}[/dim]")
     console.print()
 
 
@@ -212,8 +239,10 @@ def render_burn_rate(
     month_label: str = "",
 ) -> None:
     remaining    = budget - spent
+    days_left    = days_total - days_passed
     daily_budget = budget / days_total if days_total else 0.0
     daily_actual = spent / days_passed if days_passed else 0.0
+    safe_daily   = remaining / days_left if days_left > 0 else 0.0
     projected    = daily_actual * days_total
     pace         = daily_actual / daily_budget if daily_budget else 0.0
 
@@ -221,29 +250,36 @@ def render_burn_rate(
         emit("burn_rate", {
             "month": month_label or None, "spent": spent, "budget": budget,
             "remaining": remaining, "days_passed": days_passed,
-            "days_total": days_total, "daily_budget": daily_budget,
-            "daily_actual": daily_actual, "projected": projected, "pace": pace,
+            "days_left": days_left, "days_total": days_total,
+            "daily_budget": daily_budget, "daily_actual": daily_actual,
+            "safe_daily": safe_daily, "projected": projected, "pace": pace,
+            "pct_spent": (spent / budget * 100) if budget else 0.0,
         })
         return
 
     title = f"BURN RATE{': ' + month_label if month_label else ''}"
     section(title)
 
-    pairs = [
+    kv_pairs([
         ("budget",        f"{budget:,.2f}"),
         ("spent",         f"{spent:,.2f}  (day {days_passed} of {days_total})"),
         ("remaining",     f"{remaining:,.2f}"),
+        ("days left",     f"{days_left}"),
         ("daily budget",  f"{daily_budget:,.2f}"),
         ("daily actual",  f"{daily_actual:,.2f}"),
         ("projected",     f"{projected:,.2f}"),
-    ]
-    kv_pairs(pairs)
+    ])
 
     console.print()
     status = "ON TRACK" if pace <= 1.0 else "OVER PACE"
     style  = "green" if pace <= 1.0 else "red"
     console.print(f"  Status: [{style}]{status}[/{style}]  "
                   f"({pace:.1f}{charset().times} daily rate)")
+    # What is left to spend per remaining day, which is the number you act on.
+    safe_style = threshold_style(safe_daily, daily_budget, 0.0)
+    console.print(f"  [dim]safe daily spend:[/dim]  "
+                  f"[{safe_style}]{safe_daily:,.2f}[/{safe_style}]  "
+                  f"[dim]over {days_left} remaining day{'' if days_left == 1 else 's'}[/dim]")
     console.print()
 
     bar_w = 30
@@ -263,58 +299,6 @@ def render_burn_rate(
     _pbar("time",      time_pct,  f"{time_pct*100:.0f}% of month")
     _pbar("spent",     spend_pct, f"{spend_pct*100:.0f}% of budget")
     _pbar("projected", proj_pct,  f"{projected:,.2f}")
-    console.print()
-
-
-def render_savings_rate(
-    rows: list[dict],
-    title: str = "SAVINGS RATE",
-) -> None:
-    """rows: [{"period": ..., "income": ..., "expense": ...}]"""
-    if json_mode():
-        emit("rows", rows)
-        return
-
-    if not rows:
-        console.print("[dim]No data[/dim]")
-        return
-
-    section(title)
-
-    t = simple_table()
-    t.add_column("period",  style="bold")
-    t.add_column("income",  justify="right")
-    t.add_column("expense", justify="right")
-    t.add_column("saved",   justify="right")
-    t.add_column("rate",    justify="right", style="cyan")
-
-    rates: list[float] = []
-    for r in rows:
-        inc   = float(r.get("income") or 0)
-        exp   = float(r.get("expense") or 0)
-        saved = inc - exp
-        rate  = saved / inc * 100 if inc > 0 else 0.0
-        rates.append(rate)
-        rate_style = "green" if rate >= 20 else ("yellow" if rate >= 0 else "red")
-        t.add_row(
-            str(r["period"]),
-            f"{inc:,.2f}",
-            f"{exp:,.2f}",
-            f"{saved:,.2f}",
-            Text(f"{rate:.1f}%", style=rate_style),
-        )
-
-    console.print(t)
-
-    if rates:
-        avg_rate = sum(rates) / len(rates)
-        mn, mx   = min(rates), max(rates)
-        rng      = mx - mn or 1
-        chars    = ".:-=+*#%"
-        spark    = "".join(chars[min(7, int((r - mn) / rng * 7))] for r in rates)
-        console.print()
-        console.print(f"  [dim]avg rate:[/dim]  [cyan]{avg_rate:.1f}%[/cyan]  "
-                      f"[dim]trend: {spark}[/dim]")
     console.print()
 
 
@@ -509,53 +493,6 @@ def render_spend_by_weekday(
 
     section(title)
     bar_rows(items, show_pct=False)
-    console.print()
-
-
-def render_remaining(
-    spent: float,
-    budget: float,
-    days_passed: int,
-    days_total: int,
-    month_label: str = "",
-) -> None:
-    """Budget remaining countdown with safe daily spend."""
-    remaining   = budget - spent
-    days_left   = days_total - days_passed
-    safe_daily  = remaining / days_left if days_left > 0 else 0.0
-    pct_spent   = spent / budget if budget else 0.0
-
-    if json_mode():
-        emit("remaining", {
-            "month": month_label or None, "spent": spent, "budget": budget,
-            "remaining": remaining, "days_passed": days_passed,
-            "days_left": days_left, "safe_daily": safe_daily,
-            "pct_spent": pct_spent * 100,
-        })
-        return
-
-    title = f"REMAINING BUDGET{': ' + month_label if month_label else ''}"
-    section(title)
-
-    pairs = [
-        ("budget",     f"{budget:,.2f}"),
-        ("spent",      f"{spent:,.2f}"),
-        ("remaining",  f"{remaining:,.2f}"),
-        ("days left",  f"{days_left}"),
-    ]
-    kv_pairs(pairs)
-
-    console.print()
-    style = "green" if pct_spent <= 0.75 else ("yellow" if pct_spent <= 1.0 else "red")
-    console.print(f"  [dim]safe daily spend:[/dim]  [{style}]{safe_daily:,.2f}[/{style}]")
-    console.print()
-
-    bar_w  = 30
-    bar = gauge(pct_spent, bar_w)
-    line   = Text(f"  {'remaining':<12}  [")
-    line.append(bar, style=style)
-    line.append(f"]  {pct_spent*100:.1f}% spent")
-    console.print(line)
     console.print()
 
 
