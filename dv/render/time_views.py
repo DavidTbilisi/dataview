@@ -352,6 +352,7 @@ def render_duration_summary(
     title: str = "DURATIONS",
 ) -> None:
     """Show duration distribution between two date columns."""
+    from dv.core.stats import bins_from_values
     from dv.render.histogram import render_histogram
 
     durations: list[float] = []
@@ -384,7 +385,8 @@ def render_duration_summary(
         console.print(f"  [dim]{k.ljust(kw)}[/dim]  {v}")
     console.print()
 
-    render_histogram(durations, title=f"{start_col} {charset().arrow} {end_col} (days)", bins=8)
+    render_histogram(bins_from_values(durations, bins=8),
+                     title=f"{start_col} {charset().arrow} {end_col} (days)")
 
 
 def render_before_after(

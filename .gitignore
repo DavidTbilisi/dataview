@@ -13,3 +13,7 @@ wheels/
 .pytest_cache/
 .ruff_cache/
 *.duckdb
+
+# dv report output
+report.md
+report.html

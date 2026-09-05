@@ -1,3 +1,4 @@
+from html import escape
 from pathlib import Path
 
 from dv.core.schema import SchemaInfo
@@ -59,9 +60,13 @@ def export_markdown(
     schema: SchemaInfo,
     stats: SummaryStats,
     chart_rows: list[tuple[str, list[tuple[str, int | float]]]] | None = None,
+    where: str | None = None,
 ) -> None:
     name = Path(schema.path).name
     lines = [f"# Data Report: {name}\n\n"]
+    # A filtered report looks like a full one once it is saved, so say so.
+    if where:
+        lines.append(f"Filtered by: `{where}`\n\n")
     lines.append(_summary_md(stats))
     lines.append(_schema_md(schema))
     lines.append("\n")
@@ -149,6 +154,7 @@ def export_html(
     schema: SchemaInfo,
     stats: SummaryStats,
     chart_rows: list[tuple[str, list[tuple[str, int | float]]]] | None = None,
+    where: str | None = None,
 ) -> None:
     """Write a self-contained report: preformatted ASCII, minimal CSS, no JavaScript."""
     name = Path(schema.path).name
@@ -159,6 +165,11 @@ def export_html(
         f"<title>Data Report: {name}</title>",
         f"<style>{_HTML_CSS}</style></head><body>",
         f"<h1>Data Report: {name}</h1>",
+    ]
+    # A filtered report looks like a full one once it is saved, so say so.
+    if where:
+        parts.append(f"<p>Filtered by: <code>{escape(where)}</code></p>")
+    parts += [
         _summary_html(stats),
         _schema_html(schema),
     ]

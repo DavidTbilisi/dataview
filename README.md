@@ -36,9 +36,28 @@ Input files are registered in DuckDB as table `data`, so SQL commands can target
 Global flags:
 
 ```bash
---unicode     draw charts with Unicode block glyphs
---ascii       plain ASCII (the default)
+--unicode          draw charts with Unicode block glyphs
+--ascii            plain ASCII (the default)
+--where, -w <sql>  filter the rows every command sees
+--table <name>     pick a table inside a multi-table SQLite/DuckDB file
 ```
+
+Global flags go before the input file: `dv --unicode expenses.csv bar category`.
+
+### Filtering
+
+`--where` takes a SQL condition and applies it as `data` is loaded, so every
+command - charts, reports and raw `query` included - sees only the matching
+rows. It saves dropping to SQL and losing the renderer:
+
+```bash
+dv --where "amount > 100" examples/expenses.csv summary
+dv --where "category = 'food'" examples/expenses.csv bar method
+dv -w "date >= '2026-06-01'" examples/money.csv money-report
+```
+
+It composes with `table --where`, which narrows further, and exported reports
+record the filter they were built with.
 
 Output is ASCII by default so it stays readable when piped to a file, viewed in
 a plain terminal, or read by a screen reader. `--unicode` switches on block
@@ -78,6 +97,11 @@ dv examples/expenses.csv table --where "amount > 30" --sort amount --desc
 dv examples/expenses.csv query "SELECT * FROM data LIMIT 20"
 ```
 
+`query` renders at most 200 rows by default and reports how many matched
+(`showing 200 of 3,000,000 rows`). Raise it with `--limit`, or pass `--all` to
+render everything.
+
+
 ### Aggregation
 
 - `group-by` — group by a column with count/sum/avg aggregations
@@ -95,7 +119,7 @@ dv examples/expenses.csv top category --by amount
 
 - `bar` — horizontal bar chart for a categorical column
 - `hist` — histogram of a numeric column
-- `spark` — sparkline of a numeric column over time
+- `spark` — sparkline of a numeric column over time (`--width` glyphs)
 - `scatter` — ASCII scatter plot of two numeric columns
 - `composition` — stacked composition chart (category × period)
 - `box` — box plot (min/Q1/median/Q3/max)
@@ -159,7 +183,7 @@ All commands degrade gracefully when the `type` column is absent.
 dv examples/money.csv money-summary
 dv examples/money.csv expenses-by category
 dv examples/money.csv income-expense
-dv examples/money.csv largest --n 10
+dv examples/money.csv largest --limit 10
 dv examples/money.csv budget category --budget examples/budget.yml
 dv examples/money.csv burn-rate --month 2026-06 --budget 1500
 dv examples/money.csv savings-rate
@@ -201,6 +225,20 @@ Generated with `--unicode`; the default output uses plain ASCII.
 ![burn-rate](docs/screenshots/burn_rate.svg)
 ![subscriptions](docs/screenshots/subscriptions.svg)
 
+## Working on large files
+
+Charts aggregate in DuckDB rather than in Python, so what comes back is bounded
+by the size of the chart, not the size of the file. On a 3 million row CSV:
+
+| Command | Before | After |
+|---------|--------|-------|
+| `query "select * from data"` | did not finish | 0.7s |
+| `spark amount` | 36s, 4.1 GB | 0.5s, 296 MB |
+| `hist amount` | 3.2s, 1.2 GB | 0.6s, 271 MB |
+
+Small inputs are unaffected: `scatter` still plots every point exactly below
+20,000 rows, and chart output is byte-for-byte what it was.
+
 ## Supported formats
 
 | Extension | Format |
@@ -212,6 +250,17 @@ Generated with `--unicode`; the default output uses plain ASCII.
 | `.parquet` | Parquet |
 | `.sqlite` / `.db` | SQLite |
 | `.duckdb` | DuckDB |
+
+Text formats also read gzipped: `.csv.gz`, `.tsv.gz`, `.json.gz`, `.jsonl.gz`.
+
+A SQLite or DuckDB file with one table loads it as `data`. With several, pass
+`--table <name>` to choose; the others stay queryable under their own names, so
+`query` can join across them:
+
+```bash
+dv --table orders shop.db schema
+dv --table orders shop.db query "SELECT c.name FROM data o JOIN customers c ON o.customer_id = c.id"
+```
 
 ## Config
 

@@ -12,6 +12,14 @@ from dv.app import (
 )
 from dv.core.errors import DvError
 from dv.core.query import run_query, require_columns, require_numeric
+from dv.core.stats import (
+    box_stats,
+    cross_counts,
+    daily_totals,
+    numeric_bins,
+    scatter_grid,
+    spark_series,
+)
 from dv.core.sql import ident
 from dv.render.theme import charset, console
 from dv.render.table import render_table
@@ -64,9 +72,7 @@ def hist(
     ds = _ds()
     width = chart_width(width)
     require_numeric(ds, column)
-    c = ident(column)
-    result = run_query(ds, f"SELECT {c} FROM data WHERE {c} IS NOT NULL")
-    render_histogram([float(r[column]) for r in result.rows], title=column, bins=bins, width=width)
+    render_histogram(numeric_bins(ds, column, bins), title=column, width=width)
 
 
 @app.command()
@@ -80,28 +86,25 @@ def scatter(
     ds = _ds()
     width = chart_width(width)
     require_numeric(ds, x_col, y_col)
-    result = run_query(
-        ds,
-        f'SELECT "{x_col}", "{y_col}" FROM data WHERE "{x_col}" IS NOT NULL AND "{y_col}" IS NOT NULL',
-    )
-    points = [(float(r[x_col]), float(r[y_col])) for r in result.rows]
-    render_scatter(points, x_label=x_col, y_label=y_col, width=width, height=height)
+    render_scatter(scatter_grid(ds, x_col, y_col),
+                   x_label=x_col, y_label=y_col, width=width, height=height)
 
 
 @app.command()
 def spark(
     column: str = typer.Argument(..., help="Numeric column"),
     by: Optional[str] = typer.Option(None, "--by", help="Order-by column"),
+    width: Optional[int] = typer.Option(None, "--width", help="Sparkline length in glyphs"),
 ):
     """Show a sparkline of a numeric column."""
     ds = _ds()
     require_numeric(ds, column)
     require_columns(ds, by)
-    c = ident(column)
-    order = f"ORDER BY {ident(by)}" if by else ""
-    result = run_query(ds, f"SELECT {c} FROM data WHERE {c} IS NOT NULL {order}")
+    # A sparkline is one glyph wide per point, so ask for no more points than
+    # fit on a line: without this a large column became a one-line wall of text.
+    points = chart_width(width) or max(20, (console.width or 80) - 4)
     render_sparkline(
-        [float(r[column]) for r in result.rows],
+        spark_series(ds, column, order_by=by, points=points),
         title=f"{column} by {by}" if by else column,
     )
 
@@ -141,8 +144,7 @@ def box(
     ds     = _ds()
     width = chart_width(width)
     require_numeric(ds, column)
-    result = run_query(ds, f'SELECT "{column}" FROM data WHERE "{column}" IS NOT NULL')
-    render_box([float(r[column]) for r in result.rows], title=column, width=width)
+    render_box(box_stats(ds, column), title=column, width=width)
 
 
 @app.command()
@@ -196,8 +198,8 @@ def heatmap(
     """Show a heatmap of two categorical columns."""
     ds = _ds()
     require_columns(ds, row_col, col_col)
-    result = run_query(ds, f'SELECT "{row_col}", "{col_col}" FROM data')
-    render_heatmap(result.rows, row_col=row_col, col_col=col_col, title=f"{row_col} {charset().times} {col_col}")
+    render_heatmap(cross_counts(ds, row_col, col_col),
+                   title=f"{row_col} {charset().times} {col_col}")
 
 
 @app.command()
@@ -268,7 +270,5 @@ def calendar(
     """Show a calendar heatmap (weekday × month grid)."""
     ds     = _ds()
     require_columns(ds, date_col, value_col)
-    cols   = f'"{date_col}"' + (f', "{value_col}"' if value_col else "")
-    result = run_query(ds, f"SELECT {cols} FROM data WHERE \"{date_col}\" IS NOT NULL")
-    render_calendar(result.rows, date_col=date_col, value_col=value_col,
+    render_calendar(daily_totals(ds, date_col, value_col),
                     title=f"{value_col or 'activity'} calendar")

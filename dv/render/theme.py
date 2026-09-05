@@ -12,6 +12,15 @@ from rich.box import Box
 from rich.console import Console
 
 console = Console()
+# Warnings go to stderr so they never land in a redirected report or a pipe.
+err_console = Console(stderr=True)
+
+
+def warn(message: str, hint: str | None = None) -> None:
+    """Print a non-fatal warning to stderr."""
+    err_console.print(f"[yellow]Warning:[/yellow] {message}")
+    if hint:
+        err_console.print(f"[dim]{hint}[/dim]")
 
 
 @dataclass(frozen=True)

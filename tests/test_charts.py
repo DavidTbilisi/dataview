@@ -3,6 +3,7 @@ from io import StringIO
 from rich.console import Console
 from rich.text import Text
 
+from dv.core.stats import ScatterGrid, bins_from_values
 from dv.render.charts import render_bar, render_sparkline, render_scatter, _bar_text
 from dv.render.histogram import render_histogram
 from dv.render import theme
@@ -67,7 +68,7 @@ def test_render_sparkline(charset):
 
 
 def test_render_histogram_bins(charset):
-    output = _capture(render_histogram, list(range(100)), bins=5)
+    output = _capture(render_histogram, bins_from_values(list(range(100)), bins=5))
     assert charset.bar in output
 
 
@@ -75,21 +76,33 @@ def test_histogram_empty():
     assert "No data" in _capture(render_histogram, [])
 
 
+def test_histogram_constant_column():
+    output = _capture(render_histogram, bins_from_values([7.0, 7.0, 7.0]))
+    assert "All values are 7" in output
+
+
+def _grid(pts):
+    """A ScatterGrid over unweighted points, as core.stats would produce."""
+    xs, ys = [p[0] for p in pts], [p[1] for p in pts]
+    return ScatterGrid(points=[(x, y, 1) for x, y in pts],
+                       x_min=min(xs), x_max=max(xs), y_min=min(ys), y_max=max(ys))
+
+
 def test_render_scatter_basic(charset):
     pts = [(float(x), float(x * 2)) for x in range(1, 11)]
-    output = _capture(render_scatter, pts, x_label="hours", y_label="score", height=10)
+    output = _capture(render_scatter, _grid(pts), x_label="hours", y_label="score", height=10)
     assert charset.dot in output
     assert "hours" in output
     assert "score" in output
 
 
 def test_render_scatter_empty():
-    assert "No data" in _capture(render_scatter, [])
+    assert "No data" in _capture(render_scatter, None)
 
 
 def test_render_scatter_axes(charset):
     pts = [(0.0, 0.0), (10.0, 100.0)]
-    output = _capture(render_scatter, pts, x_label="x", y_label="y", height=10)
+    output = _capture(render_scatter, _grid(pts), x_label="x", y_label="y", height=10)
     assert "0" in output
     assert "10" in output
 
@@ -99,5 +112,5 @@ def test_ascii_output_has_no_unicode_glyphs():
     set_charset(False)
     output = _capture(render_bar, [("a", 5), ("b", 10)], title="t")
     output += _capture(render_sparkline, [1.0, 5.0, 3.0], title="t")
-    output += _capture(render_histogram, list(range(50)), bins=4)
+    output += _capture(render_histogram, bins_from_values(list(range(50)), bins=4))
     assert output.isascii(), [c for c in output if not c.isascii()]

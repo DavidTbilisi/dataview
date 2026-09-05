@@ -5,6 +5,7 @@ import duckdb
 from dv.core.datasource import DataSource, ResultView
 from dv.core.errors import DvError
 from dv.core.sql import ident, quote_path
+from dv.render.theme import warn
 
 
 def _get_read_expr(ds: DataSource) -> str:
@@ -37,22 +38,108 @@ def get_connection(ds: DataSource) -> duckdb.DuckDBPyConnection:
         return ds.connection
 
     conn = duckdb.connect()
-    tbl = ident(ds.table_name)
 
     if ds.format in ("sqlite", "duckdb"):
-        conn.execute(f"ATTACH {quote_path(ds.path)} AS src (READ_ONLY)")
-        tables = conn.execute(
-            "SELECT table_name FROM information_schema.tables WHERE table_schema = 'src'"
-        ).fetchall()
-        if not tables:
-            raise DvError(f"No tables found in {ds.path.name}")
-        first_table = tables[0][0]
-        conn.execute(f"CREATE TABLE {tbl} AS SELECT * FROM src.{ident(first_table)}")
+        _attach_database(conn, ds)
     else:
-        conn.execute(f"CREATE TABLE {tbl} AS SELECT * FROM {_get_read_expr(ds)}")
+        _load(conn, ds, f"SELECT * FROM {_get_read_expr(ds)}")
+        _warn_if_unsplit(conn, ds)
 
     ds.connection = conn
     return conn
+
+
+def _load(conn: duckdb.DuckDBPyConnection, ds: DataSource, select: str) -> None:
+    """Materialize `select` as the `data` table, applying a global --where.
+
+    Filtering here rather than in each command means every one of them - charts
+    and reports included - honours --where without knowing it exists, and only
+    the matching rows are ever materialized.
+    """
+    sql = f"CREATE TABLE {ident(ds.table_name)} AS {select}"
+    if ds.where:
+        sql += f" WHERE {ds.where}"
+    try:
+        conn.execute(sql)
+    except duckdb.Error as e:
+        if not ds.where:
+            raise
+        raise DvError(
+            f"Could not apply --where {ds.where!r}",
+            hint=str(e).strip().splitlines()[0],
+        )
+
+
+def _attach_database(conn: duckdb.DuckDBPyConnection, ds: DataSource) -> None:
+    """Attach a SQLite/DuckDB file and expose its tables on the connection.
+
+    Every table is registered as a view under its own name, so `query` can join
+    across them. One of them also becomes `data` for the single-table commands:
+    the one named by --table, or the only table if the file has just one.
+    """
+    conn.execute(f"ATTACH {quote_path(ds.path)} AS src (READ_ONLY)")
+    # An attached database is a *catalog* named 'src'; its tables live in the
+    # 'main' schema inside it. Filtering on table_schema found nothing, which
+    # made every SQLite and DuckDB file look empty.
+    names = [
+        r[0]
+        for r in conn.execute(
+            "SELECT table_name FROM information_schema.tables "
+            "WHERE table_catalog = 'src' ORDER BY table_name"
+        ).fetchall()
+    ]
+    if not names:
+        raise DvError(f"No tables found in {ds.path.name}")
+
+    for name in names:
+        if name != ds.table_name:
+            conn.execute(f"CREATE VIEW {ident(name)} AS SELECT * FROM src.{ident(name)}")
+
+    chosen = ds.source_table
+    if chosen is None:
+        if len(names) > 1:
+            raise DvError(
+                f"{ds.path.name} has {len(names)} tables; pick one with --table",
+                hint=f"Available: {', '.join(names)}",
+            )
+        chosen = names[0]
+    elif chosen not in names:
+        close = difflib.get_close_matches(chosen, names, n=1, cutoff=0.6)
+        raise DvError(
+            f"No table {chosen!r} in {ds.path.name}",
+            hint=(f"Did you mean {close[0]!r}?" if close
+                  else f"Available: {', '.join(names)}"),
+        )
+
+    _load(conn, ds, f"SELECT * FROM src.{ident(chosen)}")
+
+
+_DELIMITERS = (",", "\t", ";", "|")
+
+
+def _warn_if_unsplit(conn: duckdb.DuckDBPyConnection, ds: DataSource) -> None:
+    """Warn when a delimited file did not actually split into columns.
+
+    Rows with inconsistent field counts make DuckDB's sniffer give up on the
+    delimiter and read each line as one value, so the sole column ends up named
+    after the whole header line. Loading still succeeds, and silently reporting
+    "1 column" on a ragged file is more misleading than a warning.
+    """
+    if ds.format not in ("csv", "tsv"):
+        return
+    cols = [
+        r[0]
+        for r in conn.execute(
+            "SELECT column_name FROM information_schema.columns WHERE table_name = ?",
+            [ds.table_name],
+        ).fetchall()
+    ]
+    if len(cols) == 1 and any(d in cols[0] for d in _DELIMITERS):
+        warn(
+            f"{ds.path.name} did not split into columns - read as a single "
+            f"column named {cols[0]!r}.",
+            hint="Rows with differing field counts stop the delimiter being detected.",
+        )
 
 
 def run_query(ds: DataSource, sql: str, params: list | None = None) -> ResultView:
@@ -62,6 +149,39 @@ def run_query(ds: DataSource, sql: str, params: list | None = None) -> ResultVie
     columns = [desc[0] for desc in result.description]
     rows = [dict(zip(columns, row)) for row in result.fetchall()]
     return ResultView(columns=columns, rows=rows)
+
+
+def run_query_capped(ds: DataSource, sql: str, limit: int) -> ResultView:
+    """Run user SQL, materializing at most `limit` rows in Python.
+
+    A bare `select * from data` over a large file used to build one dict per
+    row before rendering any of them, which is unusable long before it is slow.
+    Fetching limit+1 rows detects that there is more without reading it.
+    """
+    conn = get_connection(ds)
+    result = conn.execute(sql)
+    if result.description is None:      # a statement that returns no rows
+        return ResultView(columns=[], rows=[])
+
+    cols = [desc[0] for desc in result.description]
+    fetched = result.fetchmany(limit + 1)
+    truncated = len(fetched) > limit
+    rows = [dict(zip(cols, row)) for row in fetched[:limit]]
+
+    total = None
+    if truncated:
+        try:
+            total = conn.execute(f"SELECT count(*) FROM ({sql}) AS _dv_count").fetchone()[0]
+        except duckdb.Error:
+            # Not every statement can be wrapped in a subquery; the row cap
+            # still holds, we just cannot name the total.
+            total = None
+
+    return ResultView(
+        columns=cols,
+        rows=rows,
+        metadata={"truncated": truncated, "total": total, "shown": len(rows)},
+    )
 
 
 def columns(ds: DataSource) -> list[str]:

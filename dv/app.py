@@ -25,6 +25,8 @@ app = typer.Typer(
 )
 
 _file: Path | None = None
+_table: str | None = None
+_where: str | None = None
 _config: Config = Config()
 _source: DataSource | None = None
 
@@ -32,6 +34,11 @@ _source: DataSource | None = None
 def config() -> Config:
     """Configuration loaded from .dv.yml, or defaults."""
     return _config
+
+
+def where() -> str | None:
+    """The global --where condition, if one was given."""
+    return _where
 
 
 def ds() -> DataSource:
@@ -43,7 +50,7 @@ def ds() -> DataSource:
         raise DvError("No input file given", hint="Usage: dv <file> <command>")
     if not _file.exists():
         raise DvError(f"File not found: {_file}")
-    _source = make_datasource(_file)
+    _source = make_datasource(_file, table=_table, where=_where)
     return _source
 
 
@@ -81,9 +88,23 @@ def main(
         "--unicode/--ascii",
         help="Draw charts with Unicode block glyphs instead of plain ASCII.",
     )] = None,
+    table: Annotated[Optional[str], typer.Option(
+        "--table",
+        help="Which table to read from a multi-table SQLite/DuckDB file.",
+    )] = None,
+    where: Annotated[Optional[str], typer.Option(
+        "--where", "-w",
+        help="SQL condition every command sees, e.g. --where \"amount > 100\".",
+    )] = None,
 ):
     """dv <file> <command> [options]"""
-    global _file, _config
+    global _file, _table, _where, _config, _source
+    # One process normally runs one command, but tests (and any future
+    # interactive mode) invoke the app repeatedly: without this the cached
+    # source from the previous run would answer for the new file.
+    if _source is not None:
+        _source.close()
+        _source = None
     _config = load_config(file.parent if file is not None else None)
     if unicode_ is not None:
         _config.unicode = unicode_
@@ -92,6 +113,8 @@ def main(
 
     if file is not None:
         _file = file
+    _table = table
+    _where = where
     if ctx.invoked_subcommand is None:
         console.print(ctx.get_help())
         if file is not None:

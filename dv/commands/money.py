@@ -129,7 +129,7 @@ def expenses_by(
     type_col:    str = typer.Option("type",    "--type"),
     amount_col:  str = typer.Option("amount",  "--amount"),
     expense_val: str = typer.Option("expense", "--expense"),
-    limit:       int = typer.Option(15, "--limit", "-l"),
+    limit:       Optional[int] = typer.Option(None, "--limit", "-l"),
 ):
     """Show expenses broken down by a column (bar chart with %)."""
     ds          = _ds()
@@ -175,7 +175,7 @@ def largest(
     amount_col:  str = typer.Option("amount",  "--amount"),
     type_col:    str = typer.Option("type",    "--type"),
     expense_val: str = typer.Option("expense", "--expense"),
-    limit:       int = typer.Option(10, "--limit", "-l"),
+    limit:       Optional[int] = typer.Option(None, "--limit", "-l", "--n"),
 ):
     """Show the largest transactions sorted by amount."""
     ds          = _ds()
@@ -319,7 +319,7 @@ def money_report(
     type_col:     str           = typer.Option("type",     "--type"),
     amount_col:   str           = typer.Option("amount",   "--amount"),
     date_col:     str           = typer.Option("date",     "--date"),
-    category_col: str           = typer.Option("category", "--category"),
+    category_col: str           = typer.Option("category", "--category-col"),
     income_val:   str           = typer.Option("income",   "--income"),
     expense_val:  str           = typer.Option("expense",  "--expense"),
     budget_file:  Optional[Path]= typer.Option(None,       "--budget"),
@@ -361,17 +361,27 @@ def money_report(
 
 @app.command()
 def drill(
-    category:      str = typer.Argument(...,         help="Category value to drill into"),
-    category_col:  str = typer.Option("category",    "--category"),
+    category:      Optional[str] = typer.Argument(None, help="Category value to drill into"),
+    category_opt:  Optional[str] = typer.Option(None,   "--category",
+                                                help="Category value (same as the argument)"),
+    category_col:  str = typer.Option("category",    "--category-col",
+                                      help="Column holding the category"),
     subcat_col:    str = typer.Option("subcategory", "--subcat"),
     amount_col:    str = typer.Option("amount",      "--amount"),
     date_col:      str = typer.Option("date",        "--date"),
     type_col:      str = typer.Option("type",        "--type"),
     expense_val:   str = typer.Option("expense",     "--expense"),
-    n:             int = typer.Option(5,             "--n",       help="Top N largest transactions"),
+    n:             int = typer.Option(5,             "--n", "--limit", "-l",
+                                      help="Top N largest transactions"),
 ):
     """Drill into a single category: subcategory breakdown + largest transactions."""
     ds          = _ds()
+    # `dv money.csv drill --category food` reads as naturally as the positional
+    # form, so accept both rather than failing on a plausible invocation.
+    category    = category_opt if category_opt is not None else category
+    if category is None:
+        raise DvError("No category given",
+                      hint="Usage: dv <file> drill <category>")
     require_columns(ds, category_col, amount_col, date_col)
     schema_info = get_schema(ds)
     has_type    = _has_col(schema_info, type_col)
@@ -476,7 +486,8 @@ def note_analysis(
     amount_col:  str = typer.Option("amount",  "--amount"),
     type_col:    str = typer.Option("type",    "--type"),
     expense_val: str = typer.Option("expense", "--expense"),
-    n:           int = typer.Option(20,        "--n",       help="Top N merchants"),
+    n:           int = typer.Option(20,        "--n", "--limit", "-l",
+                                      help="Top N merchants"),
 ):
     """Group by merchant/note column: count, total, average."""
     ds          = _ds()
@@ -571,7 +582,7 @@ def forecast(
 def fixed_variable(
     date_col:    str   = typer.Option("date",    "--date"),
     amount_col:  str   = typer.Option("amount",  "--amount"),
-    category_col:str   = typer.Option("category","--category"),
+    category_col:str   = typer.Option("category","--category-col"),
     type_col:    str   = typer.Option("type",    "--type"),
     expense_val: str   = typer.Option("expense", "--expense"),
     cv_threshold:float = typer.Option(0.15,      "--threshold",

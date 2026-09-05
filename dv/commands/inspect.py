@@ -9,9 +9,9 @@ from dv.app import (
     ds as _ds,
     limit_or_default,
 )
-from dv.core.query import run_query, run_table_query
+from dv.core.query import run_query, run_query_capped, run_table_query
 from dv.core.schema import get_schema
-from dv.core.stats import get_summary
+from dv.core.stats import get_summary, numeric_bins
 from dv.render.theme import charset
 from dv.render.table import render_table
 from dv.render.summary import render_describe, render_missing, render_schema, render_summary
@@ -72,10 +72,20 @@ def table(
 
 
 @app.command()
-def query(sql: str = typer.Argument(..., help="SQL query (use 'data' as table name)")):
+def query(
+    sql: str = typer.Argument(..., help="SQL query (use 'data' as table name)"),
+    limit: Optional[int] = typer.Option(None, "--limit", "-l",
+                                        help="Maximum rows to render"),
+    all_rows: bool = typer.Option(False, "--all",
+                                  help="Render every row, however many"),
+):
     """Run a SQL query against the file."""
     ds = _ds()
-    render_table(run_query(ds, sql), title=f"Query: {ds.path.name}")
+    if all_rows:
+        result = run_query(ds, sql)
+    else:
+        result = run_query_capped(ds, sql, limit_or_default(limit, 200))
+    render_table(result, title=f"Query: {ds.path.name}")
 
 
 @app.command()
@@ -104,12 +114,7 @@ def report():
     # First numeric column histogram
     for col in schema_info.columns:
         if col.inferred_type in ("integer", "float"):
-            result = run_query(ds, f'SELECT "{col.name}" FROM data WHERE "{col.name}" IS NOT NULL')
-            render_histogram(
-                [float(r[col.name]) for r in result.rows],
-                title=col.name,
-                bins=8,
-            )
+            render_histogram(numeric_bins(ds, col.name, bins=8), title=col.name)
             break
 
     # Missing values (if any)

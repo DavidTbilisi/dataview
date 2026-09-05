@@ -49,3 +49,17 @@ def test_make_datasource(tmp_path):
     ds = make_datasource(f)
     assert ds.format == "csv"
     assert ds.table_name == "data"
+
+
+def test_gzipped_text_formats():
+    assert detect_format(Path("data.csv.gz")) == "csv"
+    assert detect_format(Path("data.tsv.gz")) == "tsv"
+    assert detect_format(Path("data.jsonl.gz")) == "ndjson"
+    assert detect_format(Path("DATA.CSV.GZ")) == "csv"
+
+
+def test_gzipped_unsupported_format():
+    with pytest.raises(DvError):
+        detect_format(Path("data.parquet.gz"))
+    with pytest.raises(DvError):
+        detect_format(Path("data.gz"))

@@ -35,18 +35,15 @@ def _sym(v: float, low: float, med: float, high: float) -> str:
 
 
 def render_calendar(
-    rows: list[dict],
-    date_col: str,
-    value_col: str | None = None,
+    totals: list[tuple[str, float]],
     title: str = "",
 ) -> None:
+    """Draw one cell per day. See `core.stats.daily_totals` for the aggregation."""
     date_vals: dict[date, float] = {}
-    for r in rows:
-        d = _to_date(r.get(date_col))
-        if d is None:
-            continue
-        v = float(r[value_col]) if value_col and r.get(value_col) is not None else 1.0
-        date_vals[d] = date_vals.get(d, 0.0) + v
+    for day, value in totals:
+        d = _to_date(day)
+        if d is not None:
+            date_vals[d] = date_vals.get(d, 0.0) + value
 
     if not date_vals:
         console.print("[dim]No data[/dim]")

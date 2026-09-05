@@ -1,4 +1,5 @@
 from rich.text import Text
+from dv.core.stats import ScatterGrid
 from dv.render.common import rule
 from dv.render.theme import charset, console
 
@@ -59,20 +60,23 @@ _DOT_MULTI_STYLE = "bold yellow"   # cell holds >1 point
 
 
 def render_scatter(
-    points: list[tuple[float, float]],
+    grid_data: ScatterGrid | None,
     x_label: str = "x",
     y_label: str = "y",
     width: int | None = None,
     height: int = 20,
 ) -> None:
-    if not points:
+    """Draw pre-binned points. See `core.stats.scatter_grid` for the aggregation.
+
+    Points arrive binned at a resolution finer than any terminal, so folding
+    them onto the character grid here moves nothing by more than a cell.
+    """
+    if grid_data is None or not grid_data.points:
         console.print("[dim]No data[/dim]")
         return
 
-    xs = [p[0] for p in points]
-    ys = [p[1] for p in points]
-    x_min, x_max = min(xs), max(xs)
-    y_min, y_max = min(ys), max(ys)
+    x_min, x_max = grid_data.x_min, grid_data.x_max
+    y_min, y_max = grid_data.y_min, grid_data.y_max
     x_rng = x_max - x_min or 1.0
     y_rng = y_max - y_min or 1.0
 
@@ -84,10 +88,10 @@ def render_scatter(
 
     # build grid: grid[row][col] = count of points
     grid: list[list[int]] = [[0] * plot_w for _ in range(plot_h)]
-    for x, y in points:
+    for x, y, n in grid_data.points:
         col = min(int((x - x_min) / x_rng * (plot_w - 1)), plot_w - 1)
         row = min(int((y_max - y) / y_rng * (plot_h - 1)), plot_h - 1)
-        grid[row][col] += 1
+        grid[row][col] += n
 
     # y-axis ticks: top, mid, bottom
     tick_rows = {0: y_max, plot_h // 2: (y_max + y_min) / 2, plot_h - 1: y_min}
@@ -191,6 +195,7 @@ def render_composition(
 
 
 def render_sparkline(values: list[float], title: str = "") -> None:
+    """Draw one glyph per value. See `core.stats.spark_series` for the sampling."""
     if not values:
         console.print("[dim]No data[/dim]")
         return

@@ -10,6 +10,7 @@ from dv.app import (
     app,
     ds as _ds,
     config,
+    where as _where,
 )
 from dv.core.detect import make_datasource
 from dv.core.errors import DvError
@@ -33,7 +34,8 @@ def diff(
     ds_a = _ds()
     if not other.exists():
         raise DvError(f"File not found: {other}")
-    ds_b = make_datasource(other)
+    # The filter names the data dv is looking at, so it applies to both sides.
+    ds_b = make_datasource(other, where=_where())
     require_columns(ds_a, key)
     require_columns(ds_b, key)
 
@@ -72,7 +74,7 @@ def _report_data(ds):
 def export_md(output: Path = typer.Argument(..., help="Output markdown file")):
     """Export a Markdown report of the file."""
     ds = _ds()
-    export_markdown(output, *_report_data(ds))
+    export_markdown(output, *_report_data(ds), where=_where())
     console.print(f"[green]OK[/green] wrote {output}")
 
 
@@ -80,7 +82,7 @@ def export_md(output: Path = typer.Argument(..., help="Output markdown file")):
 def export_html_cmd(output: Path = typer.Argument(..., help="Output HTML file")):
     """Export a self-contained HTML report of the file."""
     ds = _ds()
-    export_html(output, *_report_data(ds))
+    export_html(output, *_report_data(ds), where=_where())
     console.print(f"[green]OK[/green] wrote {output}")
 
 

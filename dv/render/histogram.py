@@ -1,40 +1,32 @@
 from rich.text import Text
 
+from dv.core.stats import Bin
 from dv.render.charts import _bar_text
 from dv.render.common import rule
 from dv.render.theme import charset, console
 
 
 def render_histogram(
-    values: list[float],
+    bins: list[Bin],
     title: str = "",
-    bins: int = 10,
     width: int | None = None,
 ) -> None:
-    if not values:
+    """Draw pre-computed buckets. See `core.stats.numeric_bins` for the maths."""
+    if not bins:
         console.print("[dim]No data[/dim]")
         return
-
-    mn, mx = min(values), max(values)
-    if mn == mx:
-        console.print(f"[dim]All values are {mn}[/dim]")
+    if len(bins) == 1 and bins[0].lo == bins[0].hi:
+        console.print(f"[dim]All values are {bins[0].lo:g}[/dim]")
         return
 
-    step = (mx - mn) / bins
-    bucket_counts = [0] * bins
-    for v in values:
-        idx = min(int((v - mn) / step), bins - 1)
-        bucket_counts[idx] += 1
-
+    bucket_counts = [b.count for b in bins]
     max_count = max(bucket_counts) or 1
 
     # Build labels: "lo – hi" with consistent precision
     labels = []
-    for i in range(bins):
-        lo = mn + i * step
-        hi = mn + (i + 1) * step
-        precision = 0 if lo >= 1000 else (1 if lo >= 10 else 2)
-        labels.append(f"{lo:.{precision}f} {charset().dash} {hi:.{precision}f}")
+    for b in bins:
+        precision = 0 if b.lo >= 1000 else (1 if b.lo >= 10 else 2)
+        labels.append(f"{b.lo:.{precision}f} {charset().dash} {b.hi:.{precision}f}")
     label_width = max(len(l) for l in labels)
 
     count_strs = [str(c) for c in bucket_counts]

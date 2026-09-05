@@ -88,6 +88,15 @@ def render_table(
             cells.append(v)
         table.add_row(*cells)
     console.print(table)
+
+    meta = result.metadata
+    if meta.get("truncated"):
+        total = meta.get("total")
+        of = f" of {total:,}" if total is not None else ""
+        console.print(
+            f"  [dim]showing {meta['shown']:,}{of} rows "
+            f"{charset().emdash} raise with --limit, or --all[/dim]"
+        )
     console.print()
 
 

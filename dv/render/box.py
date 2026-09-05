@@ -1,25 +1,20 @@
 from rich.text import Text
+from dv.core.stats import BoxStats
 from dv.render.common import kv_pairs, rule
 from dv.render.theme import charset, console
 
 
 def render_box(
-    values: list[float],
+    stats: BoxStats | None,
     title: str = "",
     width: int = 60,
 ) -> None:
-    if len(values) < 4:
+    """Draw a five-number summary. See `core.stats.box_stats` for the maths."""
+    if stats is None:
         console.print("[dim]Not enough data for box plot[/dim]")
         return
 
-    sv = sorted(values)
-    n  = len(sv)
-    mn = sv[0]
-    mx = sv[-1]
-    q1 = sv[n // 4]
-    med = sv[n // 2]
-    q3  = sv[3 * n // 4]
-
+    mn, q1, med, q3, mx = stats.min, stats.q1, stats.median, stats.q3, stats.max
     rng = mx - mn or 1.0
 
     def pos(v: float) -> int:
