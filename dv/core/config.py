@@ -7,8 +7,6 @@ home directory. The first file found wins.
 from dataclasses import dataclass, field
 from pathlib import Path
 
-import yaml
-
 from dv.core.errors import DvError
 
 CONFIG_NAME = ".dv.yml"
@@ -31,6 +29,10 @@ class Config:
 
 
 def _parse(path: Path) -> Config:
+    # Imported here rather than at module scope: pyyaml costs ~17ms to import,
+    # and most runs have no .dv.yml to parse at all.
+    import yaml
+
     try:
         with open(path) as f:
             data = yaml.safe_load(f) or {}
