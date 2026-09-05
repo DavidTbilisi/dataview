@@ -1,9 +1,8 @@
 from dataclasses import dataclass
 
-import duckdb
-
 from dv.core.datasource import DataSource
 from dv.core.query import get_connection
+from dv.core.sql import ident
 
 DUCKDB_TYPE_MAP = {
     "INTEGER": "integer",
@@ -18,13 +17,24 @@ DUCKDB_TYPE_MAP = {
     "FLOAT": "float",
     "DOUBLE": "float",
     "DECIMAL": "float",
+    "NUMERIC": "float",
+    "REAL": "float",
+    "DOUBLE PRECISION": "float",
     "VARCHAR": "text",
     "TEXT": "text",
-    "BLOB": "text",
+    "BLOB": "binary",
+    "UUID": "text",
+    "JSON": "text",
+    "ENUM": "text",
     "DATE": "date",
     "TIMESTAMP": "datetime",
     "TIMESTAMP WITH TIME ZONE": "datetime",
     "TIMESTAMPTZ": "datetime",
+    "TIMESTAMP_S": "datetime",
+    "TIMESTAMP_MS": "datetime",
+    "TIMESTAMP_NS": "datetime",
+    "TIME": "time",
+    "INTERVAL": "interval",
     "BOOLEAN": "boolean",
     "BOOL": "boolean",
 }
@@ -54,23 +64,33 @@ class SchemaInfo:
 
 
 def get_schema(ds: DataSource) -> SchemaInfo:
+    """Describe every column in a single pass over the table."""
     conn = get_connection(ds)
-    tbl = ds.table_name
+    tbl = ident(ds.table_name)
 
     col_rows = conn.execute(
-        f"SELECT column_name, data_type FROM information_schema.columns "
-        f"WHERE table_name = '{tbl}' ORDER BY ordinal_position"
+        "SELECT column_name, data_type FROM information_schema.columns "
+        "WHERE table_name = ? ORDER BY ordinal_position",
+        [ds.table_name],
     ).fetchall()
 
-    row_count = conn.execute(f"SELECT count(*) FROM {tbl}").fetchone()[0]
+    if not col_rows:
+        return SchemaInfo(path=str(ds.path), format=ds.format, row_count=0, columns=[])
 
+    # One query computing row count plus missing/unique/example for every column,
+    # rather than three separate scans per column.
+    parts = ["count(*) AS _rows"]
+    for i, (col_name, _) in enumerate(col_rows):
+        c = ident(col_name)
+        parts.append(f"count(*) FILTER (WHERE {c} IS NULL) AS _missing_{i}")
+        parts.append(f"count(DISTINCT {c}) AS _unique_{i}")
+        parts.append(f"min({c})::VARCHAR AS _example_{i}")
+    agg = conn.execute(f"SELECT {', '.join(parts)} FROM {tbl}").fetchone()
+
+    row_count = agg[0]
     columns = []
-    for col_name, duck_type in col_rows:
-        safe = f'"{col_name}"'
-        missing = conn.execute(f"SELECT count(*) FROM {tbl} WHERE {safe} IS NULL").fetchone()[0]
-        unique = conn.execute(f"SELECT count(DISTINCT {safe}) FROM {tbl}").fetchone()[0]
-        ex_row = conn.execute(f"SELECT {safe} FROM {tbl} WHERE {safe} IS NOT NULL LIMIT 1").fetchone()
-        example = str(ex_row[0]) if ex_row else ""
+    for i, (col_name, duck_type) in enumerate(col_rows):
+        missing, unique, example = agg[1 + i * 3], agg[2 + i * 3], agg[3 + i * 3]
         columns.append(
             ColumnInfo(
                 name=col_name,
@@ -78,7 +98,7 @@ def get_schema(ds: DataSource) -> SchemaInfo:
                 inferred_type=_map_type(duck_type),
                 missing=missing,
                 unique=unique,
-                example=example,
+                example="" if example is None else str(example),
             )
         )
 

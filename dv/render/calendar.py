@@ -1,11 +1,10 @@
 from datetime import date
 import calendar as _cal
 
-from rich.console import Console
-from rich.rule import Rule
 from rich.text import Text
+from dv.render.common import rule
+from dv.render.theme import console
 
-console = Console()
 
 _WEEKDAY_NAMES = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
 _MONTH_ABBR = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
@@ -95,7 +94,7 @@ def render_calendar(
 
     _title = title or "CALENDAR"
     console.print()
-    console.print(Rule(f"[bold]{_title}[/bold]", style="dim", align="left"))
+    console.print(rule(f"[bold]{_title}[/bold]", style="dim", align="left"))
     console.print()
 
     label_w = 3

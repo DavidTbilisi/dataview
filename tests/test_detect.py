@@ -2,6 +2,7 @@ from pathlib import Path
 import pytest
 
 from dv.core.detect import detect_format, make_datasource
+from dv.core.errors import DvError
 
 
 def test_csv():
@@ -38,7 +39,7 @@ def test_duckdb():
 
 
 def test_unknown_raises():
-    with pytest.raises(ValueError, match="Unsupported"):
+    with pytest.raises(DvError, match="Unsupported"):
         detect_format(Path("data.xyz"))
 
 

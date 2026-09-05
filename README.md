@@ -17,14 +17,12 @@ Requires Python 3.11+ and [uv](https://github.com/astral-sh/uv).
 git clone <repo>
 cd dataview
 uv sync
-uv pip install -e .
 ```
 
-Run with either:
+Run with:
 
 ```bash
 uv run dv --help
-dv --help
 ```
 
 ## CLI shape
@@ -34,6 +32,20 @@ dv <file> <command> [options]
 ```
 
 Input files are registered in DuckDB as table `data`, so SQL commands can target that name directly.
+
+Global flags:
+
+```bash
+--unicode     draw charts with Unicode block glyphs
+--ascii       plain ASCII (the default)
+```
+
+Output is ASCII by default so it stays readable when piped to a file, viewed in
+a plain terminal, or read by a screen reader. `--unicode` switches on block
+glyphs and box drawing.
+
+Set `DV_TRACEBACK=1` to see the full Python traceback instead of a one-line
+error message.
 
 ## Quick start
 
@@ -53,7 +65,7 @@ dv examples/money.csv money-report
 - `schema` — column types, missing counts, unique counts
 - `head` — first N rows as a table
 - `summary` — row count, column types, missing, duplicates, numeric stats
-- `describe` — numeric column statistics (min, max, mean, median, std)
+- `describe` — numeric column statistics only (count, min, max, mean, median, std)
 - `missing` — missing value counts per column
 - `table` — filtered, sorted, paginated table view
 - `query` — run raw SQL (table name is `data`)
@@ -99,7 +111,7 @@ dv examples/expenses.csv bar category
 dv examples/expenses.csv hist amount --bins 12
 dv examples/expenses.csv spark amount --by date
 dv examples/tasks.csv gantt --start start --end end --label task --status status --progress progress
-dv examples/books.csv tree --path genre/subgenre/title
+dv examples/books.csv tree --path category/status/title
 ```
 
 ### Time analysis
@@ -137,7 +149,7 @@ All commands degrade gracefully when the `type` column is absent.
 - `expenses-by` — bar chart of expenses by any column (default: category)
 - `income-expense` — monthly income vs expense table with saved and rate
 - `largest` — top N transactions by amount
-- `budget` — actual vs budgeted per category (reads from `.dv.yml`)
+- `budget` — actual vs budgeted per category (reads a `--budget <file>.yml`)
 - `burn-rate` — daily pace vs budget with projected end-of-month spend
 - `savings-rate` — savings rate trend table with sparkline
 - `subscriptions` — auto-detect recurring payments (appear in 2+ months)
@@ -148,6 +160,7 @@ dv examples/money.csv money-summary
 dv examples/money.csv expenses-by category
 dv examples/money.csv income-expense
 dv examples/money.csv largest --n 10
+dv examples/money.csv budget category --budget examples/budget.yml
 dv examples/money.csv burn-rate --month 2026-06 --budget 1500
 dv examples/money.csv savings-rate
 dv examples/money.csv subscriptions --min-months 2
@@ -158,13 +171,19 @@ dv examples/money.csv money-report --month 2026-06
 
 - `diff` — compare two files by a key column
 - `export-md` — export summary + charts to a Markdown file
+- `export-html` — the same report as a self-contained HTML page
+- `alias` — run a saved view from `.dv.yml`
 
 ```bash
-dv examples/expenses.csv diff examples/study.csv --key date
+dv examples/expenses.csv diff examples/money.csv --key date
 dv examples/expenses.csv export-md report.md
+dv examples/expenses.csv export-html report.html
+dv examples/expenses.csv alias money
 ```
 
 ## Screenshots
+
+Generated with `--unicode`; the default output uses plain ASCII.
 
 ![schema](docs/screenshots/schema.svg)
 ![summary](docs/screenshots/summary.svg)
@@ -196,18 +215,31 @@ dv examples/expenses.csv export-md report.md
 
 ## Config
 
-Optional `.dv.yml` in the project directory or `~/.dv.yml`:
+Optional `.dv.yml`, looked up next to the input file, then in the working
+directory, then at `~/.dv.yml`. The first file found wins.
 
 ```yaml
-default_limit: 50
-date_format: "%Y-%m-%d"
+default_limit: 50        # rows when a command has no --limit of its own
+unicode: false           # overridden by --unicode / --ascii
+date_format: "%Y-%m-%d"  # how dates are displayed
 charts:
-  width: 60
-aliases:
+  width: 60              # default chart width
+aliases:                 # saved views, run with: dv <file> alias <name>
   money:
     group_by: category
     sum: amount
+  methods:
+    group_by: method
+    sum: amount
+    limit: 10
 ```
+
+```bash
+dv examples/expenses.csv alias money
+```
+
+`budget` is separate: it takes an explicit `--budget <file>.yml` of
+`category: amount` entries (see `examples/budget.yml`).
 
 ## Development
 

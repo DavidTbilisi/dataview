@@ -1,83 +1,103 @@
+import pytest
 from io import StringIO
 from rich.console import Console
 from rich.text import Text
 
-from dv.render.charts import render_bar, render_sparkline, render_scatter, _bar_unicode
+from dv.render.charts import render_bar, render_sparkline, render_scatter, _bar_text
 from dv.render.histogram import render_histogram
+from dv.render import theme
+from dv.render.theme import ASCII, UNICODE, set_charset
+
+
+@pytest.fixture(params=[ASCII, UNICODE], ids=["ascii", "unicode"])
+def charset(request):
+    """Run each rendering test under both charsets."""
+    set_charset(request.param is UNICODE)
+    yield request.param
+    set_charset(False)
 
 
 def _capture(fn, *args, **kwargs) -> str:
+    """Render into a fixed-width buffer instead of the terminal."""
     buf = StringIO()
-    c = Console(file=buf, highlight=False, markup=False, width=80)
-    import dv.render.charts as charts_mod
-    import dv.render.histogram as hist_mod
-    orig_c = charts_mod.console
-    orig_h = hist_mod.console
-    charts_mod.console = c
-    hist_mod.console = c
+    original = theme.console
+    theme.console = Console(file=buf, highlight=False, markup=False, width=80)
     try:
-        fn(*args, **kwargs)
+        import dv.render.charts as charts_mod
+        import dv.render.histogram as hist_mod
+        orig_c, orig_h = charts_mod.console, hist_mod.console
+        charts_mod.console = hist_mod.console = theme.console
+        try:
+            fn(*args, **kwargs)
+        finally:
+            charts_mod.console, hist_mod.console = orig_c, orig_h
     finally:
-        charts_mod.console = orig_c
-        hist_mod.console = orig_h
+        theme.console = original
     return buf.getvalue()
 
 
-def test_bar_unicode_full():
-    t = _bar_unicode(10.0, 10.0, 10)
+def test_bar_full(charset):
+    t = _bar_text(10.0, 10.0, 10)
     assert isinstance(t, Text)
-    assert "█" * 10 in t.plain
+    assert charset.bar * 10 in t.plain
 
 
-def test_bar_unicode_half():
-    t = _bar_unicode(5.0, 10.0, 10)
-    plain = t.plain
-    assert "█" in plain
+def test_bar_half(charset):
+    assert charset.bar in _bar_text(5.0, 10.0, 10).plain
 
 
-def test_bar_unicode_zero():
-    t = _bar_unicode(0.0, 10.0, 10)
-    assert t.plain.strip() == ""
+def test_bar_zero(charset):
+    assert _bar_text(0.0, 10.0, 10).plain.strip() == ""
 
 
-def test_render_bar_output():
+def test_bar_no_max_is_blank(charset):
+    assert _bar_text(5.0, 0.0, 10).plain.strip() == ""
+
+
+def test_render_bar_output(charset):
     output = _capture(render_bar, [("a", 5), ("b", 10)], title="test")
     assert "a" in output
     assert "b" in output
-    assert "█" in output
+    assert charset.bar in output
 
 
-def test_render_sparkline_unicode():
+def test_render_sparkline(charset):
     output = _capture(render_sparkline, [1.0, 2.0, 3.0, 2.0, 1.0], title="t")
-    # should contain block characters
-    assert any(c in output for c in "▁▂▃▄▅▆▇█")
+    assert any(c in output for c in charset.spark)
 
 
-def test_render_histogram_bins():
+def test_render_histogram_bins(charset):
     output = _capture(render_histogram, list(range(100)), bins=5)
-    assert "█" in output
+    assert charset.bar in output
 
 
 def test_histogram_empty():
-    output = _capture(render_histogram, [])
-    assert "No data" in output
+    assert "No data" in _capture(render_histogram, [])
 
 
-def test_render_scatter_basic():
+def test_render_scatter_basic(charset):
     pts = [(float(x), float(x * 2)) for x in range(1, 11)]
     output = _capture(render_scatter, pts, x_label="hours", y_label="score", height=10)
-    assert "◆" in output
+    assert charset.dot in output
     assert "hours" in output
     assert "score" in output
 
 
 def test_render_scatter_empty():
-    output = _capture(render_scatter, [])
-    assert "No data" in output
+    assert "No data" in _capture(render_scatter, [])
 
 
-def test_render_scatter_axes():
+def test_render_scatter_axes(charset):
     pts = [(0.0, 0.0), (10.0, 100.0)]
     output = _capture(render_scatter, pts, x_label="x", y_label="y", height=10)
     assert "0" in output
     assert "10" in output
+
+
+def test_ascii_output_has_no_unicode_glyphs():
+    """The default charset must stay safe for plain terminals and pipes."""
+    set_charset(False)
+    output = _capture(render_bar, [("a", 5), ("b", 10)], title="t")
+    output += _capture(render_sparkline, [1.0, 5.0, 3.0], title="t")
+    output += _capture(render_histogram, list(range(50)), bins=4)
+    assert output.isascii(), [c for c in output if not c.isascii()]

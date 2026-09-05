@@ -1,4 +1,3 @@
-from pathlib import Path
 import pytest
 
 from dv.core.detect import make_datasource

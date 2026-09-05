@@ -1,8 +1,6 @@
-from rich.console import Console
+from dv.render.common import ramp
+from dv.render.theme import charset, console
 
-console = Console()
-
-LEVELS = [".", "+", "*", "#"]
 
 
 def render_heatmap(
@@ -37,8 +35,7 @@ def render_heatmap(
         cells = []
         for ck in col_keys:
             count = counts.get((rk, ck), 0)
-            level = int(count / max_count * (len(LEVELS) - 1)) if max_count > 0 else 0
-            cells.append(LEVELS[level].ljust(col_width))
+            cells.append(ramp(count / max_count if max_count else 0).ljust(col_width))
         console.print(f"  {rk.ljust(row_label_width)}  {'  '.join(cells)}")
 
-    console.print(f"\n  Legend: . none  + low  * medium  # high\n")
+    console.print(f"\n  Legend: {'  '.join(charset().density)}  (none {charset().arrow} high)\n")

@@ -1,29 +1,16 @@
-from rich.console import Console
-from rich.rule import Rule
 from rich.text import Text
+from dv.render.common import rule
+from dv.render.theme import charset, console
 
-console = Console()
 
-# Sub-character block precision: space + 8 fractions
-_FRAC = " ▏▎▍▌▋▊▉█"
-_SPARK = "▁▂▃▄▅▆▇█"
 _BAR_COLOR = "cyan"
-_FRAC_COLOR = "cyan"
 
 
-def _bar_unicode(value: float, max_value: float, width: int) -> Text:
-    """Full-block bar with sub-character fractional tail."""
+def _bar_text(value: float, max_value: float, width: int) -> Text:
+    """A proportional bar in the active charset, with a fractional tail if it has one."""
     if max_value == 0:
         return Text(" " * width)
-    eighths = int(value / max_value * width * 8)
-    full = eighths // 8
-    frac = eighths % 8
-    t = Text()
-    if full:
-        t.append("█" * full, style=_BAR_COLOR)
-    if frac:
-        t.append(_FRAC[frac], style=_FRAC_COLOR)
-    return t
+    return Text(charset().bar_of(value, max_value, width), style=_BAR_COLOR)
 
 
 def render_bar(
@@ -50,14 +37,14 @@ def render_bar(
 
     if title:
         console.print()
-        console.print(Rule(f"[bold]{title}[/bold]", style="dim", align="left"))
+        console.print(rule(f"[bold]{title}[/bold]", style="dim", align="left"))
         console.print()
 
     for (label, value), val_str in zip(rows, val_strs):
         line = Text("  ")
         line.append(str(label).ljust(label_width), style="default")
         line.append("  ")
-        line.append_text(_bar_unicode(float(value), float(max_val), bar_width))
+        line.append_text(_bar_text(float(value), float(max_val), bar_width))
         # pad to align values
         filled = int(float(value) / float(max_val) * bar_width)
         line.append(" " * (bar_width - filled + 1))
@@ -67,7 +54,6 @@ def render_bar(
     console.print()
 
 
-_DOT = "◆"
 _DOT_STYLE = "cyan"
 _DOT_MULTI_STYLE = "bold yellow"   # cell holds >1 point
 
@@ -107,7 +93,7 @@ def render_scatter(
     tick_rows = {0: y_max, plot_h // 2: (y_max + y_min) / 2, plot_h - 1: y_min}
 
     console.print()
-    console.print(Rule(f"[bold]{x_label} vs {y_label}[/bold]", style="dim", align="left"))
+    console.print(rule(f"[bold]{x_label} vs {y_label}[/bold]", style="dim", align="left"))
     console.print()
     console.print(Text("  " + y_label, style="dim"))
     console.print()
@@ -118,7 +104,7 @@ def render_scatter(
         if tick_val is not None:
             label = f"{tick_val:.4g}"
             line.append(label.rjust(y_label_w), style="dim")
-            line.append(" │", style="dim")
+            line.append(" " + charset().v, style="dim")
         else:
             line.append(" " * y_label_w + "  ", style="dim")
 
@@ -127,16 +113,16 @@ def render_scatter(
             if n == 0:
                 line.append(" ")
             elif n == 1:
-                line.append(_DOT, style=_DOT_STYLE)
+                line.append(charset().dot, style=_DOT_STYLE)
             else:
-                line.append(_DOT, style=_DOT_MULTI_STYLE)
+                line.append(charset().dot, style=_DOT_MULTI_STYLE)
 
         console.print(line)
 
     # x-axis line
     axis = Text()
     axis.append(" " * (y_label_w + 1), style="dim")
-    axis.append("└" + "─" * plot_w, style="dim")
+    axis.append(charset().corner + charset().h * plot_w, style="dim")
     console.print(axis)
 
     # x-axis tick labels: left, mid, right
@@ -184,7 +170,7 @@ def render_composition(
 
     if title:
         console.print()
-        console.print(Rule(f"[bold]{title}[/bold]", style="dim", align="left"))
+        console.print(rule(f"[bold]{title}[/bold]", style="dim", align="left"))
         console.print()
 
     for label, value in rows:
@@ -195,7 +181,7 @@ def render_composition(
         line.append("  ")
         line.append(pct_str.rjust(6), style="dim")
         line.append("  ")
-        line.append_text(_bar_unicode(pct, 100.0, bar_width))
+        line.append_text(_bar_text(pct, 100.0, bar_width))
         console.print(line)
 
     console.print()
@@ -212,14 +198,15 @@ def render_sparkline(values: list[float], title: str = "") -> None:
     mn, mx = min(values), max(values)
     rng = mx - mn or 1
 
+    ramp = charset().spark
     line = Text("  ")
     for v in values:
-        idx = int((v - mn) / rng * 7)
-        line.append(_SPARK[idx], style=_BAR_COLOR)
+        idx = int((v - mn) / rng * (len(ramp) - 1))
+        line.append(ramp[idx], style=_BAR_COLOR)
 
     if title:
         console.print()
-        console.print(Rule(f"[bold]{title}[/bold]", style="dim", align="left"))
+        console.print(rule(f"[bold]{title}[/bold]", style="dim", align="left"))
         console.print()
     console.print(line)
     console.print()

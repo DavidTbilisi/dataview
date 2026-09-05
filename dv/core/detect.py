@@ -1,6 +1,7 @@
 from pathlib import Path
 
 from dv.core.datasource import DataSource
+from dv.core.errors import DvError
 
 EXTENSION_MAP = {
     ".csv": "csv",
@@ -19,7 +20,10 @@ def detect_format(path: Path) -> str:
     ext = path.suffix.lower()
     fmt = EXTENSION_MAP.get(ext)
     if fmt is None:
-        raise ValueError(f"Unsupported file extension: {ext!r}")
+        raise DvError(
+            f"Unsupported file extension: {ext or '(none)'}",
+            hint=f"Supported: {', '.join(sorted(EXTENSION_MAP))}",
+        )
     return fmt
 
 

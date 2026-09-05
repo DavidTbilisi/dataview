@@ -1,9 +1,5 @@
-from rich.console import Console
-from rich.rule import Rule
-from rich.table import Table as RichTable
-from rich import box
-
-console = Console()
+from dv.render.common import rule, simple_table
+from dv.render.theme import console
 
 
 def _fmt(v) -> str:
@@ -44,7 +40,7 @@ def render_diff(
 
     _title = title or "DIFF"
     console.print()
-    console.print(Rule(f"[bold]{_title}[/bold]", style="dim", align="left"))
+    console.print(rule(f"[bold]{_title}[/bold]", style="dim", align="left"))
     console.print()
     console.print(f"  [green]Added:[/green]    {len(added_keys)}")
     console.print(f"  [red]Removed:[/red]   {len(removed_keys)}")
@@ -52,9 +48,9 @@ def render_diff(
     console.print()
 
     if changed:
-        console.print(Rule("[dim]changed[/dim]", style="dim", align="left"))
+        console.print(rule("[dim]changed[/dim]", style="dim", align="left"))
         console.print()
-        t = RichTable(box=box.SIMPLE_HEAD, header_style="bold dim", show_edge=False, padding=(0, 1))
+        t = simple_table()
         t.add_column(key,      style="bold")
         t.add_column("field")
         t.add_column("before", style="red dim")
@@ -68,9 +64,9 @@ def render_diff(
     non_key = [c for c in columns if c != key][:5]
 
     if added_keys:
-        console.print(Rule("[dim]added[/dim]", style="dim", align="left"))
+        console.print(rule("[dim]added[/dim]", style="dim", align="left"))
         console.print()
-        t = RichTable(box=box.SIMPLE_HEAD, header_style="bold dim", show_edge=False, padding=(0, 1))
+        t = simple_table()
         t.add_column(key, style="green bold")
         for c in non_key:
             t.add_column(c)
@@ -81,9 +77,9 @@ def render_diff(
         console.print()
 
     if removed_keys:
-        console.print(Rule("[dim]removed[/dim]", style="dim", align="left"))
+        console.print(rule("[dim]removed[/dim]", style="dim", align="left"))
         console.print()
-        t = RichTable(box=box.SIMPLE_HEAD, header_style="bold dim", show_edge=False, padding=(0, 1))
+        t = simple_table()
         t.add_column(key, style="red bold")
         for c in non_key:
             t.add_column(c)

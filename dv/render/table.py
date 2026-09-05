@@ -1,12 +1,7 @@
-from builtins import sum as builtins_sum
-from rich.console import Console
-from rich.rule import Rule
-from rich.table import Table as RichTable
-from rich import box
 
 from dv.core.datasource import ResultView
-
-console = Console()
+from dv.render.common import rule, simple_table
+from dv.render.theme import charset, console, overflow_mode
 
 
 def _fmt(value) -> str:
@@ -40,13 +35,13 @@ def render_pivot(
 
     if title:
         console.print()
-        console.print(Rule(f"[bold]{title.upper()}[/bold]", style="dim", align="left"))
+        console.print(rule(f"[bold]{title.upper()}[/bold]", style="dim", align="left"))
         console.print()
 
     def fmt(v: float) -> str:
         return f"{v:,.2f}" if is_float else str(int(v))
 
-    table = RichTable(box=box.SIMPLE_HEAD, header_style="bold dim", show_edge=False, padding=(0, 1))
+    table = simple_table()
     table.add_column(row_label, style="bold")
     for col in col_order:
         table.add_column(col, justify="right")
@@ -54,11 +49,11 @@ def render_pivot(
 
     for rv in row_order:
         rd = pivot[rv]
-        total = builtins_sum(rd.values())
+        total = sum(rd.values())
         cells = [rv]
         for col in col_order:
             v = rd.get(col)
-            cells.append(fmt(v) if v is not None else "[dim]—[/dim]")
+            cells.append(fmt(v) if v is not None else f"[dim]{charset().emdash}[/dim]")
         cells.append(fmt(total))
         table.add_row(*cells)
 
@@ -74,19 +69,14 @@ def render_table(
 ) -> None:
     if title:
         console.print()
-        console.print(Rule(f"[bold]{title}[/bold]", style="dim", align="left"))
+        console.print(rule(f"[bold]{title}[/bold]", style="dim", align="left"))
         console.print()
 
-    table = RichTable(
-        box=box.SIMPLE_HEAD,
-        header_style="bold dim",
-        show_edge=False,
-        padding=(0, 1),
-    )
+    table = simple_table()
     if row_num:
-        table.add_column("#", style="dim", justify="right")
+        table.add_column("#", style="dim", justify="right", overflow=overflow_mode())
     for col in result.columns:
-        table.add_column(col)
+        table.add_column(col, overflow=overflow_mode())
     for i, row in enumerate(result.rows):
         cells = []
         if row_num:
@@ -111,16 +101,16 @@ def render_top(
         console.print("[dim]No data[/dim]")
         return
 
-    total_sum = builtins_sum(
+    total_sum = sum(
         float(r["total"]) for r in rows if r.get("total") is not None
     )
 
     _title = title or f"TOP {column_name.upper()} BY {value_name.upper()}"
     console.print()
-    console.print(Rule(f"[bold]{_title}[/bold]", style="dim", align="left"))
+    console.print(rule(f"[bold]{_title}[/bold]", style="dim", align="left"))
     console.print()
 
-    table = RichTable(box=box.SIMPLE_HEAD, header_style="bold dim", show_edge=False, padding=(0, 1))
+    table = simple_table()
     table.add_column("rank",  style="dim", justify="right")
     table.add_column(column_name, style="bold")
     table.add_column(value_name,  justify="right")

@@ -1,12 +1,9 @@
 from datetime import date, datetime
-from rich.console import Console
-from rich.rule import Rule
 from rich.text import Text
+from dv.render.common import rule
+from dv.render.theme import charset, console
 
-console = Console()
 
-_BAR_CHAR = "▓"
-_MILESTONE_CHAR = "◆"
 _BAR_STYLE = "cyan"
 _MILESTONE_STYLE = "bold yellow"
 
@@ -52,8 +49,8 @@ def render_timeline(
         if s == e:
             return s.strftime("%b %d")
         if s.month == e.month:
-            return f"{s.strftime('%b %d')}–{e.strftime('%d')}"
-        return f"{s.strftime('%b %d')}–{e.strftime('%b %d')}"
+            return f"{s.strftime('%b %d')}{charset().dash}{e.strftime('%d')}"
+        return f"{s.strftime('%b %d')}{charset().dash}{e.strftime('%b %d')}"
 
     date_strs = [_date_str(s, e) for _, s, e in events]
     date_width = max(len(d) for d in date_strs)
@@ -63,7 +60,7 @@ def render_timeline(
     bar_width = max(10, min(width, term_width - label_width - date_width - 8))
 
     console.print()
-    console.print(Rule("[bold cyan]timeline[/bold cyan]", style="dim", align="left"))
+    console.print(rule("[bold cyan]timeline[/bold cyan]", style="dim", align="left"))
     console.print()
 
     for (label, start, end), date_str in zip(events, date_strs):
@@ -77,10 +74,10 @@ def render_timeline(
         line.append("  ")
         line.append(" " * offset)
         if is_milestone:
-            line.append(_MILESTONE_CHAR, style=_MILESTONE_STYLE)
+            line.append(charset().milestone, style=_MILESTONE_STYLE)
             line.append(" " * (bar_width - offset))
         else:
-            line.append(_BAR_CHAR * span, style=_BAR_STYLE)
+            line.append(charset().bar * span, style=_BAR_STYLE)
             line.append(" " * (bar_width - offset - span))
         line.append("  ")
         line.append(date_str, style="dim")

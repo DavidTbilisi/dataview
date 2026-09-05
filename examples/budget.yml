@@ -1,0 +1,7 @@
+# Monthly budget per category, for: dv <file> budget <column> --budget examples/budget.yml
+food: 900
+transport: 200
+rent: 400
+health: 150
+entertainment: 120
+utilities: 100

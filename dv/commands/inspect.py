@@ -1,0 +1,117 @@
+"""Schema, summary and raw-table inspection commands."""
+
+from typing import Optional
+
+import typer
+
+from dv.app import (
+    app,
+    ds as _ds,
+    limit_or_default,
+)
+from dv.core.query import run_query, run_table_query
+from dv.core.schema import get_schema
+from dv.core.stats import get_summary
+from dv.render.theme import charset
+from dv.render.table import render_table
+from dv.render.summary import render_describe, render_missing, render_schema, render_summary
+from dv.render.charts import render_bar
+from dv.render.histogram import render_histogram
+
+
+@app.command()
+def schema():
+    """Show column schema, types, missing %, and example values."""
+    render_schema(get_schema(_ds()))
+
+
+@app.command()
+def head(n: int = typer.Option(10, "--lines", "-n", help="Number of rows")):
+    """Show first N rows."""
+    ds = _ds()
+    render_table(run_table_query(ds, limit=n), title=f"{ds.path.name} {charset().emdash} first {n} rows")
+
+
+@app.command()
+def summary():
+    """Show summary statistics."""
+    render_summary(get_summary(_ds()))
+
+
+@app.command()
+def describe():
+    """Show numeric column statistics only (count, min, max, mean, median, std)."""
+    render_describe(get_summary(_ds()))
+
+
+@app.command()
+def missing():
+    """Show missing value counts per column."""
+    render_missing(get_schema(_ds()))
+
+
+@app.command()
+def table(
+    limit: Optional[int] = typer.Option(None, "--limit", "-l"),
+    columns: Optional[str] = typer.Option(None, "--columns", "-c", help="Comma-separated columns"),
+    where: Optional[str] = typer.Option(None, "--where", "-w"),
+    sort: Optional[str] = typer.Option(None, "--sort", "-s"),
+    desc: bool = typer.Option(False, "--desc"),
+    truncate: Optional[int] = typer.Option(40, "--truncate", help="Truncate long text at N chars"),
+):
+    """Show data as a table with optional filters."""
+    ds = _ds()
+    limit = limit_or_default(limit, 50)
+    cols = columns.split(",") if columns else None
+    render_table(
+        run_table_query(ds, limit=limit, columns=cols, where=where, sort=sort, desc=desc),
+        title=ds.path.name,
+        row_num=True,
+        truncate=truncate,
+    )
+
+
+@app.command()
+def query(sql: str = typer.Argument(..., help="SQL query (use 'data' as table name)")):
+    """Run a SQL query against the file."""
+    ds = _ds()
+    render_table(run_query(ds, sql), title=f"Query: {ds.path.name}")
+
+
+@app.command()
+def report():
+    """Show a full terminal report: summary, schema, top chart, histogram, missing."""
+    ds          = _ds()
+    schema_info = get_schema(ds)
+    stats       = get_summary(ds)
+
+    render_summary(stats)
+    render_schema(schema_info)
+
+    # Top categorical column bar
+    for col in schema_info.columns:
+        if col.inferred_type == "text" and 2 <= col.unique <= 25:
+            result = run_query(
+                ds,
+                f'SELECT "{col.name}", count(*) as count FROM data GROUP BY "{col.name}" ORDER BY count DESC LIMIT 15',
+            )
+            render_bar(
+                [(r[col.name], r["count"]) for r in result.rows],
+                title=col.name,
+            )
+            break
+
+    # First numeric column histogram
+    for col in schema_info.columns:
+        if col.inferred_type in ("integer", "float"):
+            result = run_query(ds, f'SELECT "{col.name}" FROM data WHERE "{col.name}" IS NOT NULL')
+            render_histogram(
+                [float(r[col.name]) for r in result.rows],
+                title=col.name,
+                bins=8,
+            )
+            break
+
+    # Missing values (if any)
+    if stats.missing_total:
+        render_missing(schema_info)

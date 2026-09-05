@@ -1,30 +1,37 @@
-from rich.console import Console
-from rich.tree import Tree
-
-console = Console()
+from dv.render.theme import charset, console
 
 
-def render_tree(rows: list[dict], path_cols: list[str]) -> None:
+def _guides() -> tuple[str, str, str, str]:
+    """(branch, last branch, vertical continuation, blank) for the active charset."""
+    if charset().name == "ascii":
+        return "|-- ", "`-- ", "|   ", "    "
+    return "├── ", "└── ", "│   ", "    "
+
+
+def render_tree(rows: list[dict], path_cols: list[str], root_label: str = "Root") -> None:
     if not rows:
         console.print("[dim]No data[/dim]")
         return
 
-    root = Tree("[bold cyan]Root[/bold cyan]")
-    nodes: dict[tuple, Tree] = {(): root}
-
-    paths = []
+    # Nested dict keyed by path segment, preserving sorted order.
+    tree: dict = {}
     for row in rows:
-        parts = tuple(str(row.get(c, "?")) for c in path_cols)
-        paths.append(parts)
+        node = tree
+        for col in path_cols:
+            key = str(row.get(col, "?"))
+            node = node.setdefault(key, {})
 
-    seen = set()
-    for parts in sorted(paths):
-        for i in range(len(parts)):
-            prefix = parts[: i + 1]
-            if prefix not in seen:
-                seen.add(prefix)
-                parent = nodes[parts[:i]]
-                child = parent.add(parts[i])
-                nodes[prefix] = child
+    branch, last, pipe, blank = _guides()
 
-    console.print(root)
+    def walk(node: dict, prefix: str) -> None:
+        items = sorted(node.items())
+        for i, (name, children) in enumerate(items):
+            is_last = i == len(items) - 1
+            console.print(f"{prefix}[dim]{last if is_last else branch}[/dim]{name}")
+            if children:
+                walk(children, prefix + (blank if is_last else f"[dim]{pipe}[/dim]"))
+
+    console.print()
+    console.print(f"[bold cyan]{root_label}[/bold cyan]")
+    walk(tree, "")
+    console.print()

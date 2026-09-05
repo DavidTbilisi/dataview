@@ -1,10 +1,9 @@
 from datetime import date
 
-from rich.console import Console
-from rich.rule import Rule
 from rich.text import Text
+from dv.render.common import rule
+from dv.render.theme import charset, console
 
-console = Console()
 
 _STATUS_KIND = {
     "done":       "done",
@@ -58,17 +57,17 @@ def _bar(
 
     t = Text(" " * start_pos)
     if kind == "milestone":
-        t.append("◆", style="bold yellow")
+        t.append(charset().milestone, style="bold yellow")
     elif kind == "done":
         t.append("[", style="dim")
-        t.append("#" * bar_len, style="green")
+        t.append(charset().bar * bar_len, style="green")
         t.append("]", style="dim")
     elif kind == "active":
         fill_ratio = (progress if progress is not None else 50) / 100
         filled = max(1, int(bar_len * fill_ratio))
         t.append("[", style="dim")
-        t.append("#" * filled, style="cyan")
-        t.append("-" * (bar_len - filled), style="dim")
+        t.append(charset().bar * filled, style="cyan")
+        t.append(charset().empty * (bar_len - filled), style="dim")
         t.append("]", style="dim")
     elif kind == "blocked":
         t.append("[", style="dim")
@@ -115,9 +114,9 @@ def render_gantt(
     range_end   = max(e for _, _, _, e, _, _, _ in parsed)
 
     console.print()
-    console.print(Rule(f"[bold]{title}[/bold]", style="dim", align="left"))
+    console.print(rule(f"[bold]{title}[/bold]", style="dim", align="left"))
     console.print()
-    console.print(f"  [dim]Range: {range_start} → {range_end}[/dim]")
+    console.print(f"  [dim]Range: {range_start} {charset().arrow} {range_end}[/dim]")
     console.print()
 
     label_w  = max(len(lbl) for _, lbl, *_ in parsed)
@@ -145,7 +144,7 @@ def render_gantt(
     hdr.append("  ")
     hdr.append("timeline", style="bold dim")
     console.print(hdr)
-    sep = Text("  " + "─" * (term_w - 4), style="dim")
+    sep = Text("  " + charset().h * (term_w - 4), style="dim")
     console.print(sep)
 
     for row_id, label, s, e, raw_status, kind, prog in parsed:
@@ -168,7 +167,7 @@ def render_gantt(
 
     console.print()
     console.print(Text(
-        "  Legend: [###] done   [##-] active   [===] todo   [xxx] blocked   ◆ milestone",
+        f"  Legend: [###] done   [##-] active   [===] todo   [xxx] blocked   {charset().milestone} milestone",
         style="dim",
     ))
     console.print()

@@ -1,16 +1,13 @@
-from rich.console import Console
-from rich.rule import Rule
-from rich.table import Table as RichTable
 from rich.text import Text
-from rich import box
-
-console = Console()
+from dv.render.common import bar, gauge, rule, simple_table
+from dv.render.theme import charset, console
 
 
 def _bar(v: float, max_v: float, width: int = 20) -> str:
+    """A bar at least one character wide, so small non-zero values stay visible."""
     if max_v <= 0:
         return ""
-    return "#" * max(1, int(v / max_v * width))
+    return bar(v, max_v, width) or charset().bar
 
 
 def render_money_summary(
@@ -28,11 +25,11 @@ def render_money_summary(
     cashflow_status = "POSITIVE" if saved > 0 else ("NEUTRAL" if saved == 0 else "NEGATIVE")
 
     console.print()
-    console.print(Rule("[bold]MONEY SUMMARY[/bold]", style="dim", align="left"))
+    console.print(rule("[bold]MONEY SUMMARY[/bold]", style="dim", align="left"))
     console.print()
 
     if date_range:
-        console.print(f"  [dim]period[/dim]        {date_range[0]} → {date_range[1]}")
+        console.print(f"  [dim]period[/dim]        {date_range[0]} {charset().arrow} {date_range[1]}")
         console.print()
 
     pairs = [
@@ -77,7 +74,7 @@ def render_expenses_by(
     vw    = max(len(f"{v:,.2f}") for _, v in items)
 
     console.print()
-    console.print(Rule(f"[bold]{title}[/bold]", style="dim", align="left"))
+    console.print(rule(f"[bold]{title}[/bold]", style="dim", align="left"))
     console.print()
 
     for label, v in items:
@@ -104,10 +101,10 @@ def render_income_expense(
         return
 
     console.print()
-    console.print(Rule(f"[bold]{title}[/bold]", style="dim", align="left"))
+    console.print(rule(f"[bold]{title}[/bold]", style="dim", align="left"))
     console.print()
 
-    t = RichTable(box=box.SIMPLE_HEAD, header_style="bold dim", show_edge=False, padding=(0, 1))
+    t = simple_table()
     t.add_column("period",  style="bold")
     t.add_column("income",  justify="right", style="green")
     t.add_column("expense", justify="right", style="red")
@@ -159,17 +156,13 @@ def render_budget(
         list(budget_dict.keys()) + [c for c, _ in items if c not in budget_dict]
     ))
 
-    max_v = max(
-        max(actual_map.values(), default=0),
-        max(budget_dict.values(), default=0),
-    ) or 1
     bar_w = 20
 
     console.print()
-    console.print(Rule(f"[bold]{title}[/bold]", style="dim", align="left"))
+    console.print(rule(f"[bold]{title}[/bold]", style="dim", align="left"))
     console.print()
 
-    t = RichTable(box=box.SIMPLE_HEAD, header_style="bold dim", show_edge=False, padding=(0, 1))
+    t = simple_table()
     t.add_column("category", style="bold")
     t.add_column("budget",   justify="right")
     t.add_column("actual",   justify="right")
@@ -183,12 +176,11 @@ def render_budget(
         diff   = actual - budget
 
         if budget == 0:
-            status   = Text("—", style="dim")
-            bar_text = Text("-" * bar_w, style="dim")
+            status   = Text(f"{charset().emdash}", style="dim")
+            bar_text = Text(charset().empty * bar_w, style="dim")
         else:
             pct = actual / budget
-            filled = min(bar_w, int(pct * bar_w))
-            bar = "#" * filled + "-" * (bar_w - filled)
+            bar = gauge(pct, bar_w)
             if pct > 1.0:
                 status   = Text("OVER", style="bold red")
                 bar_text = Text(f"{bar:<{bar_w}}", style="red")
@@ -224,7 +216,7 @@ def render_burn_rate(
 
     title = f"BURN RATE{': ' + month_label if month_label else ''}"
     console.print()
-    console.print(Rule(f"[bold]{title}[/bold]", style="dim", align="left"))
+    console.print(rule(f"[bold]{title}[/bold]", style="dim", align="left"))
     console.print()
 
     pairs = [
@@ -242,14 +234,13 @@ def render_burn_rate(
     console.print()
     status = "ON TRACK" if pace <= 1.0 else "OVER PACE"
     style  = "green" if pace <= 1.0 else "red"
-    console.print(f"  Status: [{style}]{status}[/{style}]  ({pace:.1f}× daily rate)")
+    console.print(f"  Status: [{style}]{status}[/{style}]  ({pace:.1f}{charset().times} daily rate)")
     console.print()
 
     bar_w = 30
 
     def _pbar(label: str, pct: float, vstr: str) -> None:
-        filled   = min(bar_w, int(pct * bar_w))
-        bar      = "#" * filled + "-" * (bar_w - filled)
+        bar = gauge(pct, bar_w)
         bstyle   = "red" if pct > 1.0 else ("yellow" if pct > 0.85 else "green")
         line     = Text(f"  {label:<12}  [")
         line.append(bar, style=bstyle)
@@ -276,10 +267,10 @@ def render_savings_rate(
         return
 
     console.print()
-    console.print(Rule(f"[bold]{title}[/bold]", style="dim", align="left"))
+    console.print(rule(f"[bold]{title}[/bold]", style="dim", align="left"))
     console.print()
 
-    t = RichTable(box=box.SIMPLE_HEAD, header_style="bold dim", show_edge=False, padding=(0, 1))
+    t = simple_table()
     t.add_column("period",  style="bold")
     t.add_column("income",  justify="right")
     t.add_column("expense", justify="right")
@@ -325,10 +316,10 @@ def render_subscriptions(
         return
 
     console.print()
-    console.print(Rule(f"[bold]{title}[/bold]", style="dim", align="left"))
+    console.print(rule(f"[bold]{title}[/bold]", style="dim", align="left"))
     console.print()
 
-    t = RichTable(box=box.SIMPLE_HEAD, header_style="bold dim", show_edge=False, padding=(0, 1))
+    t = simple_table()
     t.add_column("name",       style="bold")
     t.add_column("avg amount", justify="right")
     t.add_column("months",     justify="right", style="dim")
@@ -361,18 +352,18 @@ def render_money_report(
 ) -> None:
     title = f"MONEY REPORT{': ' + month_label if month_label else ''}"
     console.print()
-    console.print(Rule(f"[bold]{title}[/bold]", style="dim", align="left"))
+    console.print(rule(f"[bold]{title}[/bold]", style="dim", align="left"))
     console.print()
 
     saved        = income - expense
     savings_rate = saved / income * 100 if income > 0 else 0.0
 
     if date_range:
-        console.print(f"  [dim]period[/dim]  {date_range[0]} → {date_range[1]}")
+        console.print(f"  [dim]period[/dim]  {date_range[0]} {charset().arrow} {date_range[1]}")
         console.print()
 
     # Summary
-    console.print(Rule("[dim]SUMMARY[/dim]", style="dim", align="left"))
+    console.print(rule("[dim]SUMMARY[/dim]", style="dim", align="left"))
     console.print()
     pairs = [
         ("income",       f"{income:,.2f}"),
@@ -387,7 +378,7 @@ def render_money_report(
 
     # Expenses by category
     if expense_by_cat:
-        console.print(Rule("[dim]EXPENSES BY CATEGORY[/dim]", style="dim", align="left"))
+        console.print(rule("[dim]EXPENSES BY CATEGORY[/dim]", style="dim", align="left"))
         console.print()
         total = sum(v for _, v in expense_by_cat) or 1
         max_v = max(v for _, v in expense_by_cat) or 1
@@ -410,7 +401,7 @@ def render_money_report(
         over = [(c, b) for c, b in budget_dict.items() if actual_map.get(c, 0) > b]
         ok   = [(c, b) for c, b in budget_dict.items() if actual_map.get(c, 0) <= b]
         if over or ok:
-            console.print(Rule("[dim]BUDGET STATUS[/dim]", style="dim", align="left"))
+            console.print(rule("[dim]BUDGET STATUS[/dim]", style="dim", align="left"))
             console.print()
             for cat, bgt in over:
                 diff = actual_map.get(cat, 0) - bgt
@@ -422,9 +413,9 @@ def render_money_report(
 
     # Largest transactions
     if largest:
-        console.print(Rule("[dim]LARGEST TRANSACTIONS[/dim]", style="dim", align="left"))
+        console.print(rule("[dim]LARGEST TRANSACTIONS[/dim]", style="dim", align="left"))
         console.print()
-        t = RichTable(box=box.SIMPLE_HEAD, header_style="bold dim", show_edge=False, padding=(0, 1))
+        t = simple_table()
         cols = list(largest[0].keys())
         for c in cols:
             t.add_column(c)
@@ -434,13 +425,13 @@ def render_money_report(
         console.print()
 
     # Cashflow bars
-    console.print(Rule("[dim]CASHFLOW[/dim]", style="dim", align="left"))
+    console.print(rule("[dim]CASHFLOW[/dim]", style="dim", align="left"))
     console.print()
     max_flow = max(income, expense, abs(saved)) or 1
     bar_w    = 25
 
     def _fbar(label: str, v: float, style: str) -> None:
-        bar  = "#" * max(1, int(abs(v) / max_flow * bar_w))
+        bar  = _bar(abs(v), max_flow, bar_w)
         line = Text(f"  {label:<8}  ")
         line.append(f"{bar:<{bar_w}}", style=style)
         line.append(f"  {v:,.2f}")
@@ -464,7 +455,7 @@ def render_drill(
     """Category drilldown: stats + subcategory bars + largest transactions."""
     title = title or f"CATEGORY: {category}"
     console.print()
-    console.print(Rule(f"[bold]{title}[/bold]", style="dim", align="left"))
+    console.print(rule(f"[bold]{title}[/bold]", style="dim", align="left"))
     console.print()
 
     console.print(f"  [dim]total       [/dim]  {total:,.2f}")
@@ -473,7 +464,7 @@ def render_drill(
     console.print()
 
     if subcats:
-        console.print(Rule("[dim]SUBCATEGORIES[/dim]", style="dim", align="left"))
+        console.print(rule("[dim]SUBCATEGORIES[/dim]", style="dim", align="left"))
         console.print()
         max_v = max(v for _, v in subcats) or 1
         bar_w = 20
@@ -488,9 +479,9 @@ def render_drill(
         console.print()
 
     if largest:
-        console.print(Rule("[dim]LARGEST TRANSACTIONS[/dim]", style="dim", align="left"))
+        console.print(rule("[dim]LARGEST TRANSACTIONS[/dim]", style="dim", align="left"))
         console.print()
-        t = RichTable(box=box.SIMPLE_HEAD, header_style="bold dim", show_edge=False, padding=(0, 1))
+        t = simple_table()
         for col in largest[0].keys():
             t.add_column(col)
         for r in largest:
@@ -513,7 +504,7 @@ def render_spend_by_weekday(
     vw    = max(len(f"{v:,.2f}") for _, v in items)
 
     console.print()
-    console.print(Rule(f"[bold]{title}[/bold]", style="dim", align="left"))
+    console.print(rule(f"[bold]{title}[/bold]", style="dim", align="left"))
     console.print()
 
     for label, v in items:
@@ -540,7 +531,7 @@ def render_remaining(
 
     title = f"REMAINING BUDGET{': ' + month_label if month_label else ''}"
     console.print()
-    console.print(Rule(f"[bold]{title}[/bold]", style="dim", align="left"))
+    console.print(rule(f"[bold]{title}[/bold]", style="dim", align="left"))
     console.print()
 
     pairs = [
@@ -559,8 +550,7 @@ def render_remaining(
     console.print()
 
     bar_w  = 30
-    filled = min(bar_w, int(pct_spent * bar_w))
-    bar    = "#" * filled + "-" * (bar_w - filled)
+    bar = gauge(pct_spent, bar_w)
     line   = Text(f"  {'remaining':<12}  [")
     line.append(bar, style=style)
     line.append(f"]  {pct_spent*100:.1f}% spent")
@@ -578,10 +568,10 @@ def render_note_analysis(
         return
 
     console.print()
-    console.print(Rule(f"[bold]{title}[/bold]", style="dim", align="left"))
+    console.print(rule(f"[bold]{title}[/bold]", style="dim", align="left"))
     console.print()
 
-    t = RichTable(box=box.SIMPLE_HEAD, header_style="bold dim", show_edge=False, padding=(0, 1))
+    t = simple_table()
     t.add_column("merchant", style="bold")
     t.add_column("count",    justify="right", style="dim")
     t.add_column("total",    justify="right")
@@ -612,7 +602,7 @@ def render_forecast(
         return
 
     console.print()
-    console.print(Rule(f"[bold]{title}[/bold]", style="dim", align="left"))
+    console.print(rule(f"[bold]{title}[/bold]", style="dim", align="left"))
     console.print()
 
     if historical:
@@ -627,7 +617,7 @@ def render_forecast(
         console.print(f"  [dim]expected saved:  [/dim]  {avg_sav:,.2f}")
         console.print()
 
-    t = RichTable(box=box.SIMPLE_HEAD, header_style="bold dim", show_edge=False, padding=(0, 1))
+    t = simple_table()
     t.add_column("month",   style="bold")
     t.add_column("income",  justify="right", style="green")
     t.add_column("expense", justify="right", style="red")
@@ -655,7 +645,7 @@ def render_fixed_variable(
 ) -> None:
     """fixed/variable_items: [(category, avg_monthly, cv)] where cv = stddev/mean."""
     console.print()
-    console.print(Rule(f"[bold]{title}[/bold]", style="dim", align="left"))
+    console.print(rule(f"[bold]{title}[/bold]", style="dim", align="left"))
     console.print()
 
     fixed_total    = sum(v for _, v, _ in fixed_items)

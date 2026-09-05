@@ -1,12 +1,9 @@
 from datetime import date, datetime, timedelta
 
-from rich.console import Console
-from rich.rule import Rule
-from rich.table import Table as RichTable
 from rich.text import Text
-from rich import box
+from dv.render.common import rule, simple_table
+from dv.render.theme import charset, console
 
-console = Console()
 
 _WEEKDAY_NAMES = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
 _MONTH_ABBR = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
@@ -43,11 +40,11 @@ def render_time_summary(
     active_days   = len(unique_dates)
 
     console.print()
-    console.print(Rule("[bold]TIME SUMMARY[/bold]", style="dim", align="left"))
+    console.print(rule("[bold]TIME SUMMARY[/bold]", style="dim", align="left"))
     console.print()
 
     pairs = [
-        ("range",       f"{min_d} → {max_d}"),
+        ("range",       f"{min_d} {charset().arrow} {max_d}"),
         ("total days",  f"{total_days:,}"),
         ("active days", f"{active_days:,}"),
         ("empty days",  f"{total_days - active_days:,}"),
@@ -66,7 +63,7 @@ def render_time_summary(
         month_counts[key] = month_counts.get(key, 0) + 1
     month_items = sorted(month_counts.items())
     if month_items:
-        console.print(Rule("[dim]by month[/dim]", style="dim", align="left"))
+        console.print(rule("[dim]by month[/dim]", style="dim", align="left"))
         console.print()
         render_bar([(label.split("-")[1], cnt) for label, cnt in month_items], width=40)
 
@@ -76,7 +73,7 @@ def render_time_summary(
         wd_counts[d.weekday()] += 1
     wd_items = [(_WEEKDAY_NAMES[i], wd_counts[i]) for i in range(7)]
     if any(c > 0 for _, c in wd_items):
-        console.print(Rule("[dim]by weekday[/dim]", style="dim", align="left"))
+        console.print(rule("[dim]by weekday[/dim]", style="dim", align="left"))
         console.print()
         render_bar(wd_items, width=40)
 
@@ -116,7 +113,7 @@ def render_streak(
     consistency = len(unique) / total_days * 100 if total_days else 0
 
     console.print()
-    console.print(Rule(f"[bold]{title}[/bold]", style="dim", align="left"))
+    console.print(rule(f"[bold]{title}[/bold]", style="dim", align="left"))
     console.print()
 
     pairs = [
@@ -131,7 +128,7 @@ def render_streak(
 
     # Recent 28 days
     console.print()
-    console.print(Rule("[dim]recent 28 days[/dim]", style="dim", align="left"))
+    console.print(rule("[dim]recent 28 days[/dim]", style="dim", align="left"))
     console.print()
     recent_start = max_d - timedelta(days=27)
     recent_dates = [recent_start + timedelta(days=i) for i in range(28)]
@@ -173,7 +170,7 @@ def render_gaps(
             gaps.append((unique[i - 1], unique[i], g))
 
     console.print()
-    console.print(Rule(f"[bold]{title}[/bold]", style="dim", align="left"))
+    console.print(rule(f"[bold]{title}[/bold]", style="dim", align="left"))
     console.print()
 
     if not gaps:
@@ -189,7 +186,7 @@ def render_gaps(
     console.print(f"  [dim]average:[/dim]       {avg:.1f} days")
     console.print()
 
-    t = RichTable(box=box.SIMPLE_HEAD, header_style="bold dim", show_edge=False, padding=(0, 1))
+    t = simple_table()
     t.add_column("from",  style="dim")
     t.add_column("to",    style="dim")
     t.add_column("days",  justify="right", style="bold")
@@ -236,10 +233,10 @@ def render_weekmap(
         if v <= t1: return "+", "green"
         if v <= t2: return "*", "cyan"
         if v <= t3: return "#", "yellow"
-        return "█", "bold red"
+        return charset().density[-1], "bold red"
 
     console.print()
-    console.print(Rule(f"[bold]{title}[/bold]", style="dim", align="left"))
+    console.print(rule(f"[bold]{title}[/bold]", style="dim", align="left"))
     console.print()
 
     hdr = Text("  " + " " * 11)
@@ -261,7 +258,7 @@ def render_weekmap(
         cur += timedelta(days=7)
 
     console.print()
-    console.print(Text("  Legend: . none   + low   * medium   # high   █ max", style="dim"))
+    console.print(Text(f"  Legend: {'   '.join(charset().density)}  (none -> max)", style="dim"))
     console.print()
 
 
@@ -275,7 +272,7 @@ def render_rolling(
         console.print("[dim]No data[/dim]")
         return
 
-    labels = [it[0] for it in items]
+    [it[0] for it in items]
     values = [it[1] for it in items]
     n = len(values)
 
@@ -287,10 +284,10 @@ def render_rolling(
 
     _title = (title or f"rolling average (window={window})").upper()
     console.print()
-    console.print(Rule(f"[bold]{_title}[/bold]", style="dim", align="left"))
+    console.print(rule(f"[bold]{_title}[/bold]", style="dim", align="left"))
     console.print()
 
-    t = RichTable(box=box.SIMPLE_HEAD, header_style="bold dim", show_edge=False, padding=(0, 1))
+    t = simple_table()
     t.add_column("period",          style="dim")
     t.add_column("value",           justify="right")
     t.add_column(f"avg({window})",  justify="right", style="cyan")
@@ -298,7 +295,7 @@ def render_rolling(
 
     for i, (label, v) in enumerate(items):
         ra = rolling[i]
-        arrow = "↑" if i > 0 and ra > rolling[i - 1] else ("↓" if i > 0 and ra < rolling[i - 1] else "")
+        arrow = charset().trend_up if i > 0 and ra > rolling[i - 1] else (charset().trend_down if i > 0 and ra < rolling[i - 1] else "")
         t.add_row(label, f"{v:,.2f}", f"{ra:,.2f}", arrow)
 
     console.print(t)
@@ -327,19 +324,18 @@ def render_cumulative(
 
     _title = (title or "cumulative").upper()
     console.print()
-    console.print(Rule(f"[bold]{_title}[/bold]", style="dim", align="left"))
+    console.print(rule(f"[bold]{_title}[/bold]", style="dim", align="left"))
     console.print()
 
     for label, v in items:
         running += v
         pct    = running / total
         filled = int(pct * bar_w)
-        bar    = "#" * filled + "-" * (bar_w - filled)
         line = Text(f"  {label:<{lw}}  ")
         line.append(f"{v:>{vw},.2f}", style="default")
-        line.append(f"  [", style="dim")
-        line.append("#" * filled, style="cyan")
-        line.append("-" * (bar_w - filled), style="dim")
+        line.append("  [", style="dim")
+        line.append(charset().bar * filled, style="cyan")
+        line.append(charset().empty * (bar_w - filled), style="dim")
         line.append("]", style="dim")
         line.append(f"  {running:>{cw},.2f}", style="bold")
         console.print(line)
@@ -373,7 +369,7 @@ def render_duration_summary(
     n  = len(sv)
 
     console.print()
-    console.print(Rule(f"[bold]{title}[/bold]", style="dim", align="left"))
+    console.print(rule(f"[bold]{title}[/bold]", style="dim", align="left"))
     console.print()
 
     pairs = [
@@ -388,7 +384,7 @@ def render_duration_summary(
         console.print(f"  [dim]{k.ljust(kw)}[/dim]  {v}")
     console.print()
 
-    render_histogram(durations, title=f"{start_col} → {end_col} (days)", bins=8)
+    render_histogram(durations, title=f"{start_col} {charset().arrow} {end_col} (days)", bins=8)
 
 
 def render_before_after(
@@ -414,12 +410,12 @@ def render_before_after(
     a = _stats(after_rows)
 
     console.print()
-    console.print(Rule(f"[bold]{title}[/bold]", style="dim", align="left"))
+    console.print(rule(f"[bold]{title}[/bold]", style="dim", align="left"))
     console.print()
     console.print(f"  [dim]cutoff:[/dim]  {cutoff_str}")
     console.print()
 
-    t = RichTable(box=box.SIMPLE_HEAD, header_style="bold dim", show_edge=False, padding=(0, 1))
+    t = simple_table()
     t.add_column("metric",  style="dim")
     t.add_column("before",  justify="right")
     t.add_column("after",   justify="right")
@@ -427,7 +423,7 @@ def render_before_after(
 
     def _pct(bv: float, av: float) -> Text:
         if bv == 0:
-            return Text("—", style="dim")
+            return Text(f"{charset().emdash}", style="dim")
         pct = (av - bv) / abs(bv) * 100
         s   = f"+{pct:.1f}%" if pct >= 0 else f"{pct:.1f}%"
         return Text(s, style="green" if pct >= 0 else "red")
@@ -459,10 +455,10 @@ def render_compare_periods(
 
     _title = title or f"{value_col} by {period_col}"
     console.print()
-    console.print(Rule(f"[bold]{_title.upper()}[/bold]", style="dim", align="left"))
+    console.print(rule(f"[bold]{_title.upper()}[/bold]", style="dim", align="left"))
     console.print()
 
-    t = RichTable(box=box.SIMPLE_HEAD, header_style="bold dim", show_edge=False, padding=(0, 1))
+    t = simple_table()
     t.add_column(period_col, style="bold")
     t.add_column(value_col,  justify="right")
     t.add_column("change",   justify="right")
@@ -477,7 +473,7 @@ def render_compare_periods(
             pct = (val - prev) / abs(prev) * 100
             change = Text(f"+{pct:.1f}%", style="green") if pct >= 0 else Text(f"{pct:.1f}%", style="red")
         else:
-            change = Text("—", style="dim")
+            change = Text(f"{charset().emdash}", style="dim")
 
         t.add_row(period, fmt_v, change)
         prev = val
@@ -511,10 +507,10 @@ def render_countdown(
     parsed.sort(key=lambda x: x[1])
 
     console.print()
-    console.print(Rule(f"[bold]{title}[/bold]", style="dim", align="left"))
+    console.print(rule(f"[bold]{title}[/bold]", style="dim", align="left"))
     console.print()
 
-    t = RichTable(box=box.SIMPLE_HEAD, header_style="bold dim", show_edge=False, padding=(0, 1))
+    t = simple_table()
     t.add_column(label_col, style="bold")
     t.add_column("deadline")
     t.add_column("left", justify="right")
@@ -592,12 +588,12 @@ def render_sessions(
         return
 
     console.print()
-    console.print(Rule(f"[bold]{title}[/bold]", style="dim", align="left"))
+    console.print(rule(f"[bold]{title}[/bold]", style="dim", align="left"))
     console.print()
 
     # Ruler: hour markers at 00/06/12/18/24
     ruler = list(" " * (width + 2))
-    ticks = list("-" * width)
+    ticks = list(charset().h * width)
     for h in (0, 6, 12, 18, 24):
         pos = min(int(h / 24 * width), width - 1)
         lbl = f"{h:02d}"

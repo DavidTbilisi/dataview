@@ -1,10 +1,8 @@
-from rich.console import Console
-from rich.rule import Rule
 from rich.text import Text
 
-from dv.render.charts import _bar_unicode, _BAR_COLOR
-
-console = Console()
+from dv.render.charts import _bar_text
+from dv.render.common import rule
+from dv.render.theme import charset, console
 
 
 def render_histogram(
@@ -36,7 +34,7 @@ def render_histogram(
         lo = mn + i * step
         hi = mn + (i + 1) * step
         precision = 0 if lo >= 1000 else (1 if lo >= 10 else 2)
-        labels.append(f"{lo:.{precision}f} – {hi:.{precision}f}")
+        labels.append(f"{lo:.{precision}f} {charset().dash} {hi:.{precision}f}")
     label_width = max(len(l) for l in labels)
 
     count_strs = [str(c) for c in bucket_counts]
@@ -47,14 +45,14 @@ def render_histogram(
 
     if title:
         console.print()
-        console.print(Rule(f"[bold]{title}[/bold]", style="dim", align="left"))
+        console.print(rule(f"[bold]{title}[/bold]", style="dim", align="left"))
         console.print()
 
     for label, count, count_str in zip(labels, bucket_counts, count_strs):
         line = Text("  ")
         line.append(label.ljust(label_width), style="dim")
         line.append("  ")
-        line.append_text(_bar_unicode(count, max_count, bar_width))
+        line.append_text(_bar_text(count, max_count, bar_width))
         filled = int(count / max_count * bar_width)
         line.append(" " * (bar_width - filled + 1))
         line.append(count_str, style="bold" if count == max(bucket_counts) else "default")

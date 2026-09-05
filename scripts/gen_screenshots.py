@@ -6,26 +6,33 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from rich.console import Console
 
+from dv.render import theme
+from dv.render.theme import set_charset
+
 # ── helpers ──────────────────────────────────────────────────────────────────
 
 def make_console() -> Console:
     return Console(record=True, width=80, highlight=False, force_terminal=True)
 
 
+# Screenshots show the richer `--unicode` mode; plain ASCII is the CLI default.
+set_charset(True)
+
+
 def patch_consoles(new_console: Console):
-    """Replace every module-level `console` in render/* with the recording one."""
-    import dv.render.table as t
-    import dv.render.summary as s
-    import dv.render.charts as c
-    import dv.render.histogram as h
-    import dv.render.timeline as tl
-    import dv.render.heatmap as hm
-    import dv.render.tree as tr
-    import dv.render.export as ex
-    import dv.render.gantt as g
-    import dv.render.time_views as tv
-    import dv.render.money as mo
-    for mod in (t, s, c, h, tl, hm, tr, ex, g, tv, mo):
+    """Point every render module at the recording console.
+
+    Renderers share one console object imported by value, so each module's
+    binding is rebound rather than relying on a single global.
+    """
+    import importlib
+    import pkgutil
+
+    import dv.render as render_pkg
+
+    theme.console = new_console
+    for info in pkgutil.iter_modules(render_pkg.__path__):
+        mod = importlib.import_module(f"dv.render.{info.name}")
         if hasattr(mod, "console"):
             mod.console = new_console
 
@@ -45,12 +52,12 @@ from dv.core.query import run_query, run_table_query
 from dv.core.schema import get_schema
 from dv.core.stats import get_summary
 from dv.render.table import render_table
-from dv.render.summary import render_schema, render_summary, render_missing
+from dv.render.summary import render_schema, render_summary
 from dv.render.charts import render_bar
 from dv.render.histogram import render_histogram
 from dv.render.timeline import render_timeline
 from dv.render.gantt import render_gantt
-from dv.render.time_views import render_weekmap, render_rolling, render_cumulative
+from dv.render.time_views import render_weekmap
 from dv.render.money import (
     render_money_summary,
     render_expenses_by,

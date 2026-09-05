@@ -1,8 +1,6 @@
-from rich.console import Console
-from rich.rule import Rule
 from rich.text import Text
-
-console = Console()
+from dv.render.common import kv_pairs, rule
+from dv.render.theme import charset, console
 
 
 def render_box(
@@ -38,34 +36,33 @@ def render_box(
 
     if title:
         console.print()
-        console.print(Rule(f"[bold]{title}[/bold]", style="dim", align="left"))
+        console.print(rule(f"[bold]{title}[/bold]", style="dim", align="left"))
         console.print()
 
-    pairs = [("min", fmt(mn)), ("q1", fmt(q1)), ("median", fmt(med)),
-             ("q3", fmt(q3)), ("max", fmt(mx))]
-    kw = max(len(k) for k, _ in pairs)
-    for k, v in pairs:
-        console.print(f"  [dim]{k.ljust(kw)}[/dim]  {v}")
+    kv_pairs([("min", fmt(mn)), ("q1", fmt(q1)), ("median", fmt(med)),
+              ("q3", fmt(q3)), ("max", fmt(mx))])
     console.print()
 
+    cs = charset()
     chars = [" "] * width
     for i in range(p_min, p_q1):
-        chars[i] = "─"
+        chars[i] = cs.whisker
     for i in range(p_q3, p_max + 1):
-        chars[i] = "─"
+        chars[i] = cs.whisker
     for i in range(p_q1, p_q3 + 1):
-        chars[i] = "═"
-    chars[p_min] = "├"
-    chars[p_max] = "┤"
-    chars[p_q1]  = "┠"
-    chars[p_q3]  = "┨"
-    chars[p_med] = "┃"
+        chars[i] = cs.fence
+    chars[p_min] = cs.box_left if cs.name == "ascii" else "├"
+    chars[p_max] = cs.box_right if cs.name == "ascii" else "┤"
+    chars[p_q1]  = cs.box_left
+    chars[p_q3]  = cs.box_right
+    chars[p_med] = cs.median
 
+    emphatic = {cs.median, cs.box_left, cs.box_right}
     line = Text("  ")
     for ch in chars:
-        if ch == "═":
+        if ch == cs.fence:
             line.append(ch, style="cyan")
-        elif ch in ("┃", "┠", "┨"):
+        elif ch in emphatic:
             line.append(ch, style="bold cyan")
         else:
             line.append(ch, style="dim")

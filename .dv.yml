@@ -1,0 +1,23 @@
+# Example dv configuration.
+#
+# dv looks for .dv.yml next to the input file, then in the working directory,
+# then at ~/.dv.yml. The first one found wins.
+#
+# The settings below are commented out so the examples in the README behave the
+# same with or without this file. Uncomment to try them.
+
+# default_limit: 50        # rows when a command has no --limit of its own
+# unicode: true            # overridden by --unicode / --ascii
+# date_format: "%d %b %Y"  # how dates are displayed
+# charts:
+#   width: 60              # default chart width
+
+# Saved views. Run with:  dv <file> alias <name>
+aliases:
+  money:
+    group_by: category
+    sum: amount
+  methods:
+    group_by: method
+    sum: amount
+    limit: 10
