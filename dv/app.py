@@ -13,6 +13,7 @@ from dv.core.config import Config, load_config
 from dv.core.datasource import DataSource
 from dv.core.detect import make_datasource
 from dv.core.errors import DvError
+from dv.core.stdin import is_stdin, spool_stdin
 from dv.core.query import require_columns, require_numeric
 from dv.core.sql import ident
 from dv.render.json_out import set_json
@@ -26,6 +27,7 @@ app = typer.Typer(
 )
 
 _file: Path | None = None
+_format: str | None = None
 _table: str | None = None
 _where: str | None = None
 _config: Config = Config()
@@ -55,9 +57,14 @@ def ds(stream: bool = False) -> DataSource:
         return _source
     if _file is None:
         raise DvError("No input file given", hint="Usage: dv <file> <command>")
-    if not _file.exists():
-        raise DvError(f"File not found: {_file}")
-    _source = make_datasource(_file, table=_table, where=_where, stream=stream)
+    path, fmt = _file, _format
+    if is_stdin(path):
+        # A pipe is read once, here, and every command downstream sees a file.
+        path, fmt = spool_stdin(fmt)
+    elif not path.exists():
+        raise DvError(f"File not found: {path}")
+    _source = make_datasource(path, table=_table, where=_where,
+                              stream=stream, format=fmt)
     return _source
 
 
@@ -90,10 +97,14 @@ def chart_width(width: int | None) -> int | None:
 @app.callback(invoke_without_command=True)
 def main(
     ctx: typer.Context,
-    file: Annotated[Optional[Path], typer.Argument(help="Input data file")] = None,
+    file: Annotated[Optional[Path], typer.Argument(help="Input data file, or - to read stdin")] = None,
     unicode_: Annotated[Optional[bool], typer.Option(
         "--unicode/--ascii",
         help="Draw charts with Unicode block glyphs instead of plain ASCII.",
+    )] = None,
+    format_: Annotated[Optional[str], typer.Option(
+        "--format", "-f",
+        help="Read the input as this format instead of guessing from its name.",
     )] = None,
     table: Annotated[Optional[str], typer.Option(
         "--table",
@@ -109,14 +120,16 @@ def main(
     )] = False,
 ):
     """dv <file> <command> [options]"""
-    global _file, _table, _where, _config, _source
+    global _file, _format, _table, _where, _config, _source
     # One process normally runs one command, but tests (and any future
     # interactive mode) invoke the app repeatedly: without this the cached
     # source from the previous run would answer for the new file.
     if _source is not None:
         _source.close()
         _source = None
-    _config = load_config(file.parent if file is not None else None)
+    _config = load_config(
+        file.parent if file is not None and not is_stdin(file) else None
+    )
     if unicode_ is not None:
         _config.unicode = unicode_
     set_charset(_config.unicode)
@@ -125,6 +138,7 @@ def main(
 
     if file is not None:
         _file = file
+    _format = format_
     _table = table
     _where = where
     if ctx.invoked_subcommand is None:
@@ -134,5 +148,8 @@ def main(
             if name in ctx.command.commands:
                 raise DvError(f"No input file given for {name!r}",
                               hint=f"Usage: dv <file> {name}")
-            raise DvError(f"No command given for {file}",
-                          hint="Try: dv <file> summary")
+            raise DvError(
+                "No command given for stdin" if is_stdin(file)
+                else f"No command given for {file}",
+                hint="Try: dv <file> summary",
+            )

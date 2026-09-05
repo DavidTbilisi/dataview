@@ -10,6 +10,7 @@ import duckdb
 
 from dv.app import app
 from dv.core.errors import DvError
+from dv.core.stdin import STDIN_ARG
 from dv.render.json_out import flush as flush_json
 from dv.render.theme import err_console
 
@@ -52,12 +53,44 @@ def cli() -> None:
 # of them is also a per-command option, so seeing one later is always the
 # position mistake rather than a real flag. `--where` is deliberately absent:
 # `table` and `streak` take one of their own, and the two compose.
-_GLOBAL_ONLY = {"--json", "--unicode", "--ascii", "--table"}
+_GLOBAL_ONLY = {"--json", "--unicode", "--ascii", "--table", "--format"}
+
+# Global options whose value is the next argument, needed to tell an option's
+# value apart from the input file when scanning argv.
+_GLOBAL_VALUE_OPTS = {"--table", "--where", "-w", "--format", "-f"}
+
+
+def _command_names() -> set[str]:
+    return {c.name or c.callback.__name__ for c in app.registered_commands}
+
+
+def _default_to_stdin() -> None:
+    """`cat f.csv | dv summary` means the same as `cat f.csv | dv - summary`.
+
+    Only when the first positional argument is itself a command name, so a real
+    file called `summary` would still win - and only when stdin is a pipe, so
+    a plain `dv summary` at a prompt keeps its "no input file" advice.
+    """
+    if sys.stdin.isatty():
+        return
+    names = _command_names()
+    args = sys.argv[1:]
+    i = 0
+    while i < len(args):
+        arg = args[i]
+        if arg in _GLOBAL_VALUE_OPTS:
+            i += 2                      # option and its separate value
+        elif arg.startswith("-") and arg != STDIN_ARG:
+            i += 1                      # a flag, or --opt=value
+        else:
+            if arg in names:
+                sys.argv.insert(i + 1, STDIN_ARG)
+            return
 
 
 def _check_global_flag_position() -> None:
     """Turn `dv f.csv summary --json` into advice instead of "No such option"."""
-    names = {c.name or c.callback.__name__ for c in app.registered_commands}
+    names = _command_names()
     command_at = next((i for i, a in enumerate(sys.argv[1:], 1) if a in names), None)
     if command_at is None:
         return
@@ -75,6 +108,7 @@ def _run() -> None:
     Typer exits by raising SystemExit even on success, so the document is
     written from the handler rather than after the call.
     """
+    _default_to_stdin()
     _check_global_flag_position()
     try:
         app()
@@ -86,8 +120,7 @@ def _run() -> None:
 
 def _command_name() -> str | None:
     """The subcommand the user typed, for the "no --json here" message."""
-    known = set(app.registered_commands and
-                {c.name or c.callback.__name__ for c in app.registered_commands})
+    known = _command_names()
     return next((a for a in sys.argv[1:] if a in known), None)
 
 

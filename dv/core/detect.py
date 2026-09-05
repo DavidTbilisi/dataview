@@ -20,6 +20,18 @@ EXTENSION_MAP = {
 # be opened, not streamed - neither is meaningful gzipped.
 GZIPPABLE = {"csv", "tsv", "json", "ndjson"}
 
+FORMATS = sorted(set(EXTENSION_MAP.values()))
+
+
+def check_format(name: str) -> str:
+    """Validate a format named by --format, which bypasses extension detection."""
+    if name not in FORMATS:
+        raise DvError(
+            f"Unknown format {name!r}",
+            hint=f"Supported: {', '.join(FORMATS)}",
+        )
+    return name
+
 
 def detect_format(path: Path) -> str:
     ext = path.suffix.lower()
@@ -46,7 +58,8 @@ def make_datasource(
     table: str | None = None,
     where: str | None = None,
     stream: bool = False,
+    format: str | None = None,
 ) -> DataSource:
-    fmt = detect_format(path)
+    fmt = check_format(format) if format else detect_format(path)
     return DataSource(path=path, format=fmt, source_table=table,
                       where=where, stream=stream)

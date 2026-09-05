@@ -41,10 +41,40 @@ Global flags:
 --json             emit the command's data as JSON instead of drawing it
 --where, -w <sql>  filter the rows every command sees
 --table <name>     pick a table inside a multi-table SQLite/DuckDB file
+--format, -f <fmt> read the input as this format instead of guessing
 ```
 
 Global flags go before the input file: `dv --unicode expenses.csv bar category`.
 Putting one after it is an error that tells you so.
+
+### Reading from a pipe
+
+`-` in place of the filename reads stdin, so `dv` sits in the middle of a
+pipeline as easily as at the end of one:
+
+```bash
+curl -s https://example.com/export.csv | dv - summary
+zcat logs.csv.gz | dv - bar level
+psql -c "copy (select ...) to stdout csv header" | dv - hist duration
+```
+
+The format is guessed from the content - CSV, TSV, JSON, NDJSON, Parquet and
+gzip of any of them all arrive without an extension to read. When the guess is
+wrong, or a file on disk has a misleading name, say so:
+
+```bash
+dv --format csv access_log summary
+```
+
+The `-` is optional when the first word is a command, so this works too:
+
+```bash
+cat expenses.csv | dv bar category
+```
+
+dv reads its input several times - schema, then the query, then the aggregates
+- so a pipe is spooled to a temporary file first. It is streamed there in
+chunks and deleted on exit, so piping something larger than memory is fine.
 
 ### JSON output
 
