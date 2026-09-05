@@ -11,12 +11,23 @@ def _ascii_bar(value: float, max_value: float, width: int = 40) -> str:
     return ASCII.bar_of(value, max_value, width)
 
 
+def _cell(value) -> str:
+    """A value safe to drop into a Markdown table cell.
+
+    A pipe or a newline in a column name or a category ends the cell early and
+    shears the rest of the table sideways.
+    """
+    return str(value).replace("|", r"\|").replace("\n", " ").replace("\r", " ")
+
+
 def _schema_md(schema: SchemaInfo) -> str:
     lines = ["## Schema\n", f"Rows: {schema.row_count}  \n", f"Columns: {len(schema.columns)}\n\n"]
     lines.append("| Column | Type | Missing | Unique |\n")
     lines.append("|--------|------|---------|--------|\n")
     for col in schema.columns:
-        lines.append(f"| {col.name} | {col.inferred_type} | {col.missing} | {col.unique} |\n")
+        lines.append(
+            f"| {_cell(col.name)} | {col.inferred_type} | {col.missing} | {col.unique} |\n"
+        )
     return "".join(lines)
 
 
@@ -35,7 +46,7 @@ def _summary_md(stats: SummaryStats) -> str:
         lines.append("|--------|-------|-----|-----|------|--------|\n")
         for ns in stats.numeric_stats:
             lines.append(
-                f"| {ns.column} | {ns.count} | {ns.min:.2f} | {ns.max:.2f} | {ns.mean:.2f} | {ns.median:.2f} |\n"
+                f"| {_cell(ns.column)} | {ns.count} | {ns.min:.2f} | {ns.max:.2f} | {ns.mean:.2f} | {ns.median:.2f} |\n"
             )
         lines.append("\n")
     return "".join(lines)
@@ -96,7 +107,7 @@ td:not(:first-child), th:not(:first-child) { text-align: right; }
 
 def _schema_html(schema: SchemaInfo) -> str:
     rows = "".join(
-        f"<tr><td>{c.name}</td><td>{c.inferred_type}</td>"
+        f"<tr><td>{escape(c.name)}</td><td>{c.inferred_type}</td>"
         f"<td>{c.missing}</td><td>{c.unique}</td></tr>"
         for c in schema.columns
     )
@@ -109,21 +120,24 @@ def _schema_html(schema: SchemaInfo) -> str:
 
 def _summary_html(stats: SummaryStats) -> str:
     pairs = [
-        ("File", Path(stats.path).name),
-        ("Format", stats.format.upper()),
+        ("File", escape(Path(stats.path).name)),
+        ("Format", escape(stats.format.upper())),
         ("Rows", stats.row_count),
         ("Columns", stats.col_count),
         ("Missing values", stats.missing_total),
         ("Duplicate rows", stats.duplicate_count),
     ]
     if stats.date_range:
-        pairs.append(("Date range", f"{stats.date_range[0]} to {stats.date_range[1]}"))
+        pairs.append((
+            "Date range",
+            escape(f"{stats.date_range[0]} to {stats.date_range[1]}"),
+        ))
     items = "".join(f"<tr><td>{k}</td><td>{v}</td></tr>" for k, v in pairs)
     out = f"<h2>Summary</h2>\n<table>\n{items}\n</table>\n"
 
     if stats.numeric_stats:
         rows = "".join(
-            f"<tr><td>{n.column}</td><td>{n.count}</td><td>{n.min:.2f}</td>"
+            f"<tr><td>{escape(n.column)}</td><td>{n.count}</td><td>{n.min:.2f}</td>"
             f"<td>{n.max:.2f}</td><td>{n.mean:.2f}</td><td>{n.median:.2f}</td></tr>"
             for n in stats.numeric_stats
         )
@@ -146,7 +160,9 @@ def _bar_html(rows: list[tuple[str, int | float]], title: str, width: int = 40) 
         bar = _ascii_bar(float(value), float(max_val), width=width)
         val_str = f"{value:.2f}" if isinstance(value, float) else str(value)
         body.append(f"{str(label).ljust(label_width)}  {bar}  {val_str}")
-    return f"<h3>{title}</h3>\n<pre>{chr(10).join(body)}</pre>\n"
+    # Pad before escaping: `&lt;` is one glyph on screen, so the columns line up
+    # against the raw width, not the encoded one.
+    return f"<h3>{escape(title)}</h3>\n<pre>{escape(chr(10).join(body))}</pre>\n"
 
 
 def export_html(
@@ -157,7 +173,7 @@ def export_html(
     where: str | None = None,
 ) -> None:
     """Write a self-contained report: preformatted ASCII, minimal CSS, no JavaScript."""
-    name = Path(schema.path).name
+    name = escape(Path(schema.path).name)
     parts = [
         "<!doctype html>",
         '<html lang="en"><head><meta charset="utf-8">',

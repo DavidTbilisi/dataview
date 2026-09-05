@@ -404,3 +404,42 @@ def test_export_html_escapes_the_filter(tmp_path):
 def test_unknown_column_suggests_close_match():
     with pytest.raises(DvError, match="categry|Did you mean"):
         runner.invoke(app, [EXPENSES, "bar", "categry"], catch_exceptions=False)
+
+
+# A column name and a category value that are also HTML and Markdown syntax.
+# Both come straight out of the file, so both reach the report unfiltered.
+_HOSTILE = (
+    "date,<script>alert(1)</script>,a|b,amount\n"
+    "2026-06-01,<b>bold</b>,1,10\n"
+    "2026-06-02,plain,2,20\n"
+)
+
+
+def test_export_html_escapes_data_from_the_file(tmp_path):
+    """A column or a value is data, never markup - the report is opened in a browser."""
+    src = tmp_path / "hostile.csv"
+    src.write_text(_HOSTILE)
+    out = tmp_path / "report.html"
+    run([str(src), "export-html", str(out)])
+    html = out.read_text()
+
+    assert "<script>" not in html
+    assert "&lt;script&gt;alert(1)&lt;/script&gt;" in html
+    assert "<b>bold</b>" not in html
+    assert "&lt;b&gt;bold&lt;/b&gt;" in html
+
+
+def test_export_md_keeps_the_table_intact(tmp_path):
+    """A pipe in a column name would otherwise split the cell and shear the table."""
+    src = tmp_path / "hostile.csv"
+    src.write_text(_HOSTILE)
+    out = tmp_path / "report.md"
+    run([str(src), "export-md", str(out)])
+
+    schema_rows = [
+        line for line in out.read_text().splitlines()
+        if line.startswith("|") and "---" not in line
+    ]
+    # Every row of both tables has the same cell count as its header.
+    widths = {line.count("|") - line.count(r"\|") for line in schema_rows}
+    assert widths == {5, 7}, widths
