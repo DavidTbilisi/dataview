@@ -13,7 +13,7 @@ from dv.app import (
 )
 from dv.core.errors import DvError
 from dv.core.query import require_columns, require_numeric, run_query
-from dv.core.sql import ident
+from dv.core.sql import ident, order_by_agg
 from dv.core.stats import (
     box_stats,
     cross_counts,
@@ -49,17 +49,17 @@ def bar(
     require_columns(ds, column, sum_col, avg_col)
     if sum_col:
         sql     = (f'SELECT "{column}", sum("{sum_col}") as val FROM data '
-                   f'GROUP BY "{column}" ORDER BY val DESC LIMIT {limit}')
+                   f'GROUP BY "{column}" {order_by_agg("val", column)} LIMIT {limit}')
         agg_col = "val"
         title   = f"{sum_col} by {column}"
     elif avg_col:
         sql     = (f'SELECT "{column}", avg("{avg_col}") as val FROM data '
-                   f'GROUP BY "{column}" ORDER BY val DESC LIMIT {limit}')
+                   f'GROUP BY "{column}" {order_by_agg("val", column)} LIMIT {limit}')
         agg_col = "val"
         title   = f"avg {avg_col} by {column}"
     else:
         sql     = (f'SELECT "{column}", count(*) as count FROM data '
-                   f'GROUP BY "{column}" ORDER BY count DESC LIMIT {limit}')
+                   f'GROUP BY "{column}" {order_by_agg("count", column)} LIMIT {limit}')
         agg_col = "count"
         title   = column
     result = run_query(ds, sql)
@@ -127,11 +127,11 @@ def composition(
     require_columns(ds, column, sum_col)
     if sum_col:
         sql   = (f'SELECT "{column}", sum("{sum_col}") as val FROM data '
-                 f'GROUP BY "{column}" ORDER BY val DESC LIMIT {limit}')
+                 f'GROUP BY "{column}" {order_by_agg("val", column)} LIMIT {limit}')
         title = f"{sum_col} composition by {column}"
     else:
         sql   = (f'SELECT "{column}", count(*) as val FROM data '
-                 f'GROUP BY "{column}" ORDER BY val DESC LIMIT {limit}')
+                 f'GROUP BY "{column}" {order_by_agg("val", column)} LIMIT {limit}')
         title = f"composition by {column}"
     result = run_query(ds, sql)
     render_composition(
@@ -181,7 +181,7 @@ def outliers(
         WHERE d.{c} < b.lower OR d.{c} > b.upper
         -- Order by distance from the fence so a LIMIT keeps the most extreme
         -- outliers from BOTH tails, not just the largest values.
-        ORDER BY greatest(b.lower - d.{c}, d.{c} - b.upper) DESC
+        ORDER BY greatest(b.lower - d.{c}, d.{c} - b.upper) DESC, d.rowid
         LIMIT {limit}
     """
     result = run_query(ds, sql)

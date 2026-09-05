@@ -12,6 +12,7 @@ from dv.app import (
 )
 from dv.core.query import run_query, run_query_capped, run_table_query
 from dv.core.schema import get_schema
+from dv.core.sql import order_by_agg
 from dv.core.stats import get_summary, numeric_bins
 from dv.render.charts import render_bar
 from dv.render.histogram import render_histogram
@@ -108,7 +109,7 @@ def report():
             result = run_query(
                 ds,
                 f'SELECT "{col.name}", count(*) as count FROM data '
-                f'GROUP BY "{col.name}" ORDER BY count DESC LIMIT 15',
+                f'GROUP BY "{col.name}" {order_by_agg("count", col.name)} LIMIT 15',
             )
             render_bar(
                 [(r[col.name], r["count"]) for r in result.rows],

@@ -57,6 +57,27 @@ def period_expr(date_col: str, by: str) -> str:
     )
 
 
+def order_by_agg(agg_col: str, group_col: str, desc: bool = True) -> str:
+    """ORDER BY an aggregate, with the grouped column breaking ties.
+
+    Without a tiebreaker DuckDB's parallel hash aggregate returns equal-valued
+    groups in a different order run to run. Under a LIMIT that changes *which*
+    rows appear, not just their order, so two runs of the same command over an
+    unchanged file can disagree about the top 10.
+    """
+    return f"ORDER BY {ident(agg_col)} {'DESC' if desc else 'ASC'}, {ident(group_col)}"
+
+
+def order_by_row(sort_col: str, desc: bool = True) -> str:
+    """ORDER BY a column of the raw rows, with insertion order breaking ties.
+
+    `rowid` is the table's physical order, so tied rows come back in file
+    order. Only valid against the materialized table - the streamed commands
+    (head, table, query) read a view, which has no rowid.
+    """
+    return f"ORDER BY {ident(sort_col)} {'DESC' if desc else 'ASC'}, rowid"
+
+
 def agg_expr(
     sum_col: str | None,
     avg_col: str | None,
