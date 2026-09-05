@@ -2,7 +2,7 @@ from datetime import date
 
 from rich.text import Text
 
-from dv.render.common import rule
+from dv.render.common import section
 from dv.render.json_out import emit, json_mode
 from dv.render.theme import charset, console
 
@@ -118,9 +118,7 @@ def render_gantt(
     range_start = min(s for _, _, s, _, _, _, _ in parsed)
     range_end   = max(e for _, _, _, e, _, _, _ in parsed)
 
-    console.print()
-    console.print(rule(f"[bold]{title}[/bold]", style="dim", align="left"))
-    console.print()
+    section(title)
     # highlight=False, or the highlighter shreds each date into cyan
     # year / month / day fragments (see dv/render/table.py).
     console.print(

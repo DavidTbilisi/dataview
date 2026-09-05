@@ -1,7 +1,7 @@
 from rich.text import Text
 
 from dv.core.stats import ScatterGrid
-from dv.render.common import rule
+from dv.render.common import section
 from dv.render.json_out import emit, json_mode
 from dv.render.theme import charset, console
 
@@ -42,9 +42,7 @@ def render_bar(
     bar_width = width or max(10, term_width - label_width - val_width - 8)
 
     if title:
-        console.print()
-        console.print(rule(f"[bold]{title}[/bold]", style="dim", align="left"))
-        console.print()
+        section(title)
 
     for (label, value), val_str in zip(rows, val_strs, strict=True):
         line = Text("  ")
@@ -107,9 +105,7 @@ def render_scatter(
     # y-axis ticks: top, mid, bottom
     tick_rows = {0: y_max, plot_h // 2: (y_max + y_min) / 2, plot_h - 1: y_min}
 
-    console.print()
-    console.print(rule(f"[bold]{x_label} vs {y_label}[/bold]", style="dim", align="left"))
-    console.print()
+    section(f"{x_label} vs {y_label}")
     console.print(Text("  " + y_label, style="dim"))
     console.print()
 
@@ -193,9 +189,7 @@ def render_composition(
     bar_width   = width or max(10, term_width - label_width - 14)
 
     if title:
-        console.print()
-        console.print(rule(f"[bold]{title}[/bold]", style="dim", align="left"))
-        console.print()
+        section(title)
 
     for label, value in rows:
         pct = value / total * 100
@@ -234,8 +228,6 @@ def render_sparkline(values: list[float], title: str = "") -> None:
         line.append(ramp[idx], style=_BAR_COLOR)
 
     if title:
-        console.print()
-        console.print(rule(f"[bold]{title}[/bold]", style="dim", align="left"))
-        console.print()
+        section(title)
     console.print(line)
     console.print()

@@ -2,7 +2,7 @@ from datetime import date, datetime
 
 from rich.text import Text
 
-from dv.render.common import rule
+from dv.render.common import section
 from dv.render.json_out import emit, json_mode
 from dv.render.theme import charset, console
 
@@ -65,9 +65,7 @@ def render_timeline(
     term_width = console.width or 80
     bar_width = max(10, min(width, term_width - label_width - date_width - 8))
 
-    console.print()
-    console.print(rule("[bold cyan]timeline[/bold cyan]", style="dim", align="left"))
-    console.print()
+    section("timeline", style="bold cyan")
 
     for (label, start, end), date_str in zip(events, date_strs, strict=True):
         is_milestone = start == end

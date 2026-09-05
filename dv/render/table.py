@@ -1,6 +1,6 @@
 
 from dv.core.datasource import ResultView
-from dv.render.common import rule, simple_table
+from dv.render.common import section, simple_table
 from dv.render.json_out import emit, json_mode
 from dv.render.theme import charset, console, err_console, overflow_mode
 
@@ -42,9 +42,7 @@ def render_pivot(
         return
 
     if title:
-        console.print()
-        console.print(rule(f"[bold]{title.upper()}[/bold]", style="dim", align="left"))
-        console.print()
+        section(title.upper())
 
     def fmt(v: float) -> str:
         return f"{v:,.2f}" if is_float else str(int(v))
@@ -90,9 +88,7 @@ def render_table(
         return
 
     if title:
-        console.print()
-        console.print(rule(f"[bold]{title}[/bold]", style="dim", align="left"))
-        console.print()
+        section(title)
 
     table = simple_table()
     if row_num:
@@ -154,9 +150,7 @@ def render_top(
     )
 
     _title = title or f"TOP {column_name.upper()} BY {value_name.upper()}"
-    console.print()
-    console.print(rule(f"[bold]{_title}[/bold]", style="dim", align="left"))
-    console.print()
+    section(_title)
 
     table = simple_table()
     table.add_column("rank",  style="dim", justify="right")

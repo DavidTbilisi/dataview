@@ -1,15 +1,8 @@
 from rich.text import Text
 
-from dv.render.common import bar, gauge, rule, simple_table
+from dv.render.common import bar, bar_rows, gauge, kv_pairs, section, simple_table, subsection
 from dv.render.json_out import emit, json_mode
 from dv.render.theme import charset, console
-
-
-def _bar(v: float, max_v: float, width: int = 20) -> str:
-    """A bar at least one character wide, so small non-zero values stay visible."""
-    if max_v <= 0:
-        return ""
-    return bar(v, max_v, width) or charset().bar
 
 
 def render_money_summary(
@@ -40,9 +33,7 @@ def render_money_summary(
     cashflow_style = "green" if saved > 0 else ("dim" if saved == 0 else "red")
     cashflow_status = "POSITIVE" if saved > 0 else ("NEUTRAL" if saved == 0 else "NEGATIVE")
 
-    console.print()
-    console.print(rule("[bold]MONEY SUMMARY[/bold]", style="dim", align="left"))
-    console.print()
+    section("MONEY SUMMARY")
 
     if date_range:
         console.print(f"  [dim]period[/dim]        "
@@ -55,9 +46,7 @@ def render_money_summary(
         ("saved",        f"{saved:,.2f}"),
         ("savings rate", f"{savings_rate:.1f}%"),
     ]
-    kw = max(len(k) for k, _ in pairs)
-    for k, v in pairs:
-        console.print(f"  [dim]{k.ljust(kw)}[/dim]  {v}")
+    kv_pairs(pairs)
 
     console.print()
     pairs2 = [
@@ -67,9 +56,7 @@ def render_money_summary(
     ]
     if accounts:
         pairs2.append(("accounts", ", ".join(accounts)))
-    kw2 = max(len(k) for k, _ in pairs2)
-    for k, v in pairs2:
-        console.print(f"  [dim]{k.ljust(kw2)}[/dim]  {v}")
+    kv_pairs(pairs2)
 
     console.print()
     console.print(f"  [dim]cashflow:[/dim]  [{cashflow_style}]{cashflow_status}[/{cashflow_style}]")
@@ -89,23 +76,9 @@ def render_expenses_by(
         return
 
     total = sum(v for _, v in items) or 1
-    max_v = max(v for _, v in items) or 1
-    bar_w = 22
-    lw    = max(len(label) for label, _ in items)
-    vw    = max(len(f"{v:,.2f}") for _, v in items)
 
-    console.print()
-    console.print(rule(f"[bold]{title}[/bold]", style="dim", align="left"))
-    console.print()
-
-    for label, v in items:
-        bar = _bar(v, max_v, bar_w)
-        pct = v / total * 100
-        line = Text(f"  {label:<{lw}}  ")
-        line.append(f"{bar:<{bar_w}}", style="cyan")
-        line.append(f"  {v:>{vw},.2f}")
-        line.append(f"  {pct:>5.1f}%", style="dim")
-        console.print(line)
+    section(title)
+    bar_rows(items)
 
     console.print()
     console.print(Text(f"  Total: {total:,.2f}", style="bold"))
@@ -125,9 +98,7 @@ def render_income_expense(
         console.print("[dim]No data[/dim]")
         return
 
-    console.print()
-    console.print(rule(f"[bold]{title}[/bold]", style="dim", align="left"))
-    console.print()
+    section(title)
 
     t = simple_table()
     t.add_column("period",  style="bold")
@@ -192,9 +163,7 @@ def render_budget(
 
     bar_w = 20
 
-    console.print()
-    console.print(rule(f"[bold]{title}[/bold]", style="dim", align="left"))
-    console.print()
+    section(title)
 
     t = simple_table()
     t.add_column("category", style="bold")
@@ -258,9 +227,7 @@ def render_burn_rate(
         return
 
     title = f"BURN RATE{': ' + month_label if month_label else ''}"
-    console.print()
-    console.print(rule(f"[bold]{title}[/bold]", style="dim", align="left"))
-    console.print()
+    section(title)
 
     pairs = [
         ("budget",        f"{budget:,.2f}"),
@@ -270,9 +237,7 @@ def render_burn_rate(
         ("daily actual",  f"{daily_actual:,.2f}"),
         ("projected",     f"{projected:,.2f}"),
     ]
-    kw = max(len(k) for k, _ in pairs)
-    for k, v in pairs:
-        console.print(f"  [dim]{k.ljust(kw)}[/dim]  {v}")
+    kv_pairs(pairs)
 
     console.print()
     status = "ON TRACK" if pace <= 1.0 else "OVER PACE"
@@ -314,9 +279,7 @@ def render_savings_rate(
         console.print("[dim]No data[/dim]")
         return
 
-    console.print()
-    console.print(rule(f"[bold]{title}[/bold]", style="dim", align="left"))
-    console.print()
+    section(title)
 
     t = simple_table()
     t.add_column("period",  style="bold")
@@ -368,9 +331,7 @@ def render_subscriptions(
         console.print("[dim]No recurring payments detected[/dim]")
         return
 
-    console.print()
-    console.print(rule(f"[bold]{title}[/bold]", style="dim", align="left"))
-    console.print()
+    section(title)
 
     t = simple_table()
     t.add_column("name",       style="bold")
@@ -417,9 +378,7 @@ def render_money_report(
         return
 
     title = f"MONEY REPORT{': ' + month_label if month_label else ''}"
-    console.print()
-    console.print(rule(f"[bold]{title}[/bold]", style="dim", align="left"))
-    console.print()
+    section(title)
 
     saved        = income - expense
     savings_rate = saved / income * 100 if income > 0 else 0.0
@@ -429,36 +388,20 @@ def render_money_report(
         console.print()
 
     # Summary
-    console.print(rule("[dim]SUMMARY[/dim]", style="dim", align="left"))
-    console.print()
+    subsection("SUMMARY")
     pairs = [
         ("income",       f"{income:,.2f}"),
         ("expenses",     f"{expense:,.2f}"),
         ("saved",        f"{saved:,.2f}"),
         ("savings rate", f"{savings_rate:.1f}%"),
     ]
-    kw = max(len(k) for k, _ in pairs)
-    for k, v in pairs:
-        console.print(f"  [dim]{k.ljust(kw)}[/dim]  {v}")
+    kv_pairs(pairs)
     console.print()
 
     # Expenses by category
     if expense_by_cat:
-        console.print(rule("[dim]EXPENSES BY CATEGORY[/dim]", style="dim", align="left"))
-        console.print()
-        total = sum(v for _, v in expense_by_cat) or 1
-        max_v = max(v for _, v in expense_by_cat) or 1
-        bar_w = 20
-        lw    = max(len(label) for label, _ in expense_by_cat)
-        vw    = max(len(f"{v:,.2f}") for _, v in expense_by_cat)
-        for label, v in expense_by_cat[:10]:
-            bar = _bar(v, max_v, bar_w)
-            pct = v / total * 100
-            line = Text(f"  {label:<{lw}}  ")
-            line.append(f"{bar:<{bar_w}}", style="cyan")
-            line.append(f"  {v:>{vw},.2f}")
-            line.append(f"  {pct:>5.1f}%", style="dim")
-            console.print(line)
+        subsection("EXPENSES BY CATEGORY")
+        bar_rows(expense_by_cat[:10])
         console.print()
 
     # Budget status
@@ -467,8 +410,7 @@ def render_money_report(
         over = [(c, b) for c, b in budget_dict.items() if actual_map.get(c, 0) > b]
         ok   = [(c, b) for c, b in budget_dict.items() if actual_map.get(c, 0) <= b]
         if over or ok:
-            console.print(rule("[dim]BUDGET STATUS[/dim]", style="dim", align="left"))
-            console.print()
+            subsection("BUDGET STATUS")
             for cat, bgt in over:
                 diff = actual_map.get(cat, 0) - bgt
                 console.print(f"  [red]OVER[/red]  {cat:<20}  +{diff:,.2f}")
@@ -479,8 +421,7 @@ def render_money_report(
 
     # Largest transactions
     if largest:
-        console.print(rule("[dim]LARGEST TRANSACTIONS[/dim]", style="dim", align="left"))
-        console.print()
+        subsection("LARGEST TRANSACTIONS")
         t = simple_table()
         cols = list(largest[0].keys())
         for c in cols:
@@ -491,15 +432,14 @@ def render_money_report(
         console.print()
 
     # Cashflow bars
-    console.print(rule("[dim]CASHFLOW[/dim]", style="dim", align="left"))
-    console.print()
+    subsection("CASHFLOW")
     max_flow = max(income, expense, abs(saved)) or 1
     bar_w    = 25
 
     def _fbar(label: str, v: float, style: str) -> None:
-        bar  = _bar(abs(v), max_flow, bar_w)
+        drawn = bar(abs(v), max_flow, bar_w)
         line = Text(f"  {label:<8}  ")
-        line.append(f"{bar:<{bar_w}}", style=style)
+        line.append(f"{drawn:<{bar_w}}", style=style)
         line.append(f"  {v:,.2f}")
         console.print(line)
 
@@ -531,9 +471,7 @@ def render_drill(
         return
 
     title = title or f"CATEGORY: {category}"
-    console.print()
-    console.print(rule(f"[bold]{title}[/bold]", style="dim", align="left"))
-    console.print()
+    section(title)
 
     console.print(f"  [dim]total       [/dim]  {total:,.2f}")
     console.print(f"  [dim]transactions[/dim]  {tx_count:,}")
@@ -541,23 +479,12 @@ def render_drill(
     console.print()
 
     if subcats:
-        console.print(rule("[dim]SUBCATEGORIES[/dim]", style="dim", align="left"))
-        console.print()
-        max_v = max(v for _, v in subcats) or 1
-        bar_w = 20
-        lw    = max(len(label) for label, _ in subcats)
-        vw    = max(len(f"{v:,.2f}") for _, v in subcats)
-        for label, v in subcats:
-            bar = _bar(v, max_v, bar_w)
-            line = Text(f"  {label:<{lw}}  ")
-            line.append(f"{bar:<{bar_w}}", style="cyan")
-            line.append(f"  {v:>{vw},.2f}")
-            console.print(line)
+        subsection("SUBCATEGORIES")
+        bar_rows(subcats, show_pct=False)
         console.print()
 
     if largest:
-        console.print(rule("[dim]LARGEST TRANSACTIONS[/dim]", style="dim", align="left"))
-        console.print()
+        subsection("LARGEST TRANSACTIONS")
         t = simple_table()
         for col in largest[0]:
             t.add_column(col)
@@ -580,20 +507,8 @@ def render_spend_by_weekday(
         console.print("[dim]No data[/dim]")
         return
 
-    max_v = max(v for _, v in items) or 1
-    bar_w = 24
-    vw    = max(len(f"{v:,.2f}") for _, v in items)
-
-    console.print()
-    console.print(rule(f"[bold]{title}[/bold]", style="dim", align="left"))
-    console.print()
-
-    for label, v in items:
-        bar  = _bar(v, max_v, bar_w)
-        line = Text(f"  {label:<3}  ")
-        line.append(f"{bar:<{bar_w}}", style="cyan")
-        line.append(f"  {v:>{vw},.2f}")
-        console.print(line)
+    section(title)
+    bar_rows(items, show_pct=False)
     console.print()
 
 
@@ -620,9 +535,7 @@ def render_remaining(
         return
 
     title = f"REMAINING BUDGET{': ' + month_label if month_label else ''}"
-    console.print()
-    console.print(rule(f"[bold]{title}[/bold]", style="dim", align="left"))
-    console.print()
+    section(title)
 
     pairs = [
         ("budget",     f"{budget:,.2f}"),
@@ -630,9 +543,7 @@ def render_remaining(
         ("remaining",  f"{remaining:,.2f}"),
         ("days left",  f"{days_left}"),
     ]
-    kw = max(len(k) for k, _ in pairs)
-    for k, v in pairs:
-        console.print(f"  [dim]{k.ljust(kw)}[/dim]  {v}")
+    kv_pairs(pairs)
 
     console.print()
     style = "green" if pct_spent <= 0.75 else ("yellow" if pct_spent <= 1.0 else "red")
@@ -661,9 +572,7 @@ def render_note_analysis(
         console.print("[dim]No data[/dim]")
         return
 
-    console.print()
-    console.print(rule(f"[bold]{title}[/bold]", style="dim", align="left"))
-    console.print()
+    section(title)
 
     t = simple_table()
     t.add_column("merchant", style="bold")
@@ -699,9 +608,7 @@ def render_forecast(
         console.print("[dim]No data[/dim]")
         return
 
-    console.print()
-    console.print(rule(f"[bold]{title}[/bold]", style="dim", align="left"))
-    console.print()
+    section(title)
 
     if historical:
         avg_inc = sum(float(r.get("income") or 0) for r in historical) / len(historical)
@@ -750,9 +657,7 @@ def render_fixed_variable(
         ])
         return
 
-    console.print()
-    console.print(rule(f"[bold]{title}[/bold]", style="dim", align="left"))
-    console.print()
+    section(title)
 
     fixed_total    = sum(v for _, v, _ in fixed_items)
     variable_total = sum(v for _, v, _ in variable_items)
@@ -762,9 +667,9 @@ def render_fixed_variable(
 
     def _section(label: str, items: list[tuple[str, float, float]], total: float, style: str):
         pct = total / grand_total * 100
-        bar = _bar(total, max_v, bar_w)
+        drawn = bar(total, max_v, bar_w)
         console.print(f"  [bold]{label}[/bold]  "
-                      f"[{style}]{bar:<{bar_w}}[/{style}]  "
+                      f"[{style}]{drawn:<{bar_w}}[/{style}]  "
                       f"{total:,.2f}  [dim]{pct:.1f}%[/dim]")
         console.print()
         lw = max((len(c) for c, _, _ in items), default=0)

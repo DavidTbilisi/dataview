@@ -2,7 +2,7 @@ from datetime import date, datetime, timedelta
 
 from rich.text import Text
 
-from dv.render.common import rule, simple_table
+from dv.render.common import kv_pairs, section, simple_table, subsection
 from dv.render.json_out import emit, json_mode
 from dv.render.theme import charset, console
 
@@ -44,9 +44,7 @@ def render_time_summary(
     total_days    = (max_d - min_d).days + 1
     active_days   = len(unique_dates)
 
-    console.print()
-    console.print(rule("[bold]TIME SUMMARY[/bold]", style="dim", align="left"))
-    console.print()
+    section("TIME SUMMARY")
 
     pairs = [
         ("range",       f"{min_d} {charset().arrow} {max_d}"),
@@ -56,9 +54,7 @@ def render_time_summary(
         ("first event", str(min_d)),
         ("last event",  str(max_d)),
     ]
-    kw = max(len(k) for k, _ in pairs)
-    for k, v in pairs:
-        console.print(f"  [dim]{k.ljust(kw)}[/dim]  {v}")
+    kv_pairs(pairs)
     console.print()
 
     # By month
@@ -68,8 +64,7 @@ def render_time_summary(
         month_counts[key] = month_counts.get(key, 0) + 1
     month_items = sorted(month_counts.items())
     if month_items:
-        console.print(rule("[dim]by month[/dim]", style="dim", align="left"))
-        console.print()
+        subsection("by month")
         render_bar([(label.split("-")[1], cnt) for label, cnt in month_items], width=40)
 
     # By weekday
@@ -78,8 +73,7 @@ def render_time_summary(
         wd_counts[d.weekday()] += 1
     wd_items = [(_WEEKDAY_NAMES[i], wd_counts[i]) for i in range(7)]
     if any(c > 0 for _, c in wd_items):
-        console.print(rule("[dim]by weekday[/dim]", style="dim", align="left"))
-        console.print()
+        subsection("by weekday")
         render_bar(wd_items, width=40)
 
 
@@ -126,9 +120,7 @@ def render_streak(
         })
         return
 
-    console.print()
-    console.print(rule(f"[bold]{title}[/bold]", style="dim", align="left"))
-    console.print()
+    section(title)
 
     pairs = [
         ("current streak", f"{curr} days"),
@@ -136,14 +128,11 @@ def render_streak(
         ("active days",    f"{len(unique)} / {total_days}"),
         ("consistency",    f"{consistency:.1f}%"),
     ]
-    kw = max(len(k) for k, _ in pairs)
-    for k, v in pairs:
-        console.print(f"  [dim]{k.ljust(kw)}[/dim]  {v}")
+    kv_pairs(pairs)
 
     # Recent 28 days
     console.print()
-    console.print(rule("[dim]recent 28 days[/dim]", style="dim", align="left"))
-    console.print()
+    subsection("recent 28 days")
     recent_start = max_d - timedelta(days=27)
     recent_dates = [recent_start + timedelta(days=i) for i in range(28)]
 
@@ -187,9 +176,7 @@ def render_gaps(
         if g > 1:
             gaps.append((unique[i - 1], unique[i], g))
 
-    console.print()
-    console.print(rule(f"[bold]{title}[/bold]", style="dim", align="left"))
-    console.print()
+    section(title)
 
     if not gaps:
         console.print("  [dim]No gaps (data is consecutive)[/dim]\n")
@@ -259,9 +246,7 @@ def render_weekmap(
                 return glyph, style
         return charset().density[-1], "bold red"
 
-    console.print()
-    console.print(rule(f"[bold]{title}[/bold]", style="dim", align="left"))
-    console.print()
+    section(title)
 
     hdr = Text("  " + " " * 11)
     for dn in _WEEKDAY_NAMES:
@@ -311,9 +296,7 @@ def render_rolling(
         rolling.append(sum(chunk) / len(chunk))
 
     _title = (title or f"rolling average (window={window})").upper()
-    console.print()
-    console.print(rule(f"[bold]{_title}[/bold]", style="dim", align="left"))
-    console.print()
+    section(_title)
 
     t = simple_table()
     t.add_column("period",          style="dim")
@@ -357,9 +340,7 @@ def render_cumulative(
     cw = len(f"{total:,.2f}")
 
     _title = (title or "cumulative").upper()
-    console.print()
-    console.print(rule(f"[bold]{_title}[/bold]", style="dim", align="left"))
-    console.print()
+    section(_title)
 
     for label, v in items:
         running += v
@@ -403,9 +384,7 @@ def render_duration_summary(
     sv = sorted(durations)
     n  = len(sv)
 
-    console.print()
-    console.print(rule(f"[bold]{title}[/bold]", style="dim", align="left"))
-    console.print()
+    section(title)
 
     pairs = [
         ("count",  f"{n}"),
@@ -414,9 +393,7 @@ def render_duration_summary(
         ("mean",   f"{sum(durations)/n:.1f} days"),
         ("median", f"{sv[n // 2]:.0f} days"),
     ]
-    kw = max(len(k) for k, _ in pairs)
-    for k, v in pairs:
-        console.print(f"  [dim]{k.ljust(kw)}[/dim]  {v}")
+    kv_pairs(pairs)
     console.print()
 
     render_histogram(bins_from_values(durations, bins=8),
@@ -455,9 +432,7 @@ def render_before_after(
         })
         return
 
-    console.print()
-    console.print(rule(f"[bold]{title}[/bold]", style="dim", align="left"))
-    console.print()
+    section(title)
     console.print(f"  [dim]cutoff:[/dim]  {cutoff_str}")
     console.print()
 
@@ -504,9 +479,7 @@ def render_compare_periods(
         return
 
     _title = title or f"{value_col} by {period_col}"
-    console.print()
-    console.print(rule(f"[bold]{_title.upper()}[/bold]", style="dim", align="left"))
-    console.print()
+    section(_title.upper())
 
     t = simple_table()
     t.add_column(period_col, style="bold")
@@ -561,9 +534,7 @@ def render_countdown(
 
     parsed.sort(key=lambda x: x[1])
 
-    console.print()
-    console.print(rule(f"[bold]{title}[/bold]", style="dim", align="left"))
-    console.print()
+    section(title)
 
     t = simple_table()
     t.add_column(label_col, style="bold")
@@ -646,9 +617,7 @@ def render_sessions(
         console.print("[dim]No data[/dim]")
         return
 
-    console.print()
-    console.print(rule(f"[bold]{title}[/bold]", style="dim", align="left"))
-    console.print()
+    section(title)
 
     # Ruler: hour markers at 00/06/12/18/24
     ruler = list(" " * (width + 2))
