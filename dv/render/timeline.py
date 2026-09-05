@@ -1,6 +1,7 @@
 from datetime import date, datetime
 from rich.text import Text
 from dv.render.common import rule
+from dv.render.json_out import emit, json_mode
 from dv.render.theme import charset, console
 
 
@@ -26,6 +27,10 @@ def render_timeline(
     label_col: str,
     width: int = 60,
 ) -> None:
+    if json_mode():
+        emit("rows", rows)
+        return
+
     events = []
     for row in rows:
         start = _parse_date(row.get(start_col))

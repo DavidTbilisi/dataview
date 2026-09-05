@@ -3,6 +3,7 @@ import calendar as _cal
 
 from rich.text import Text
 from dv.render.common import rule
+from dv.render.json_out import emit, json_mode
 from dv.render.theme import console
 
 
@@ -39,6 +40,10 @@ def render_calendar(
     title: str = "",
 ) -> None:
     """Draw one cell per day. See `core.stats.daily_totals` for the aggregation."""
+    if json_mode():
+        emit("days", [{"date": d, "value": v} for d, v in totals])
+        return
+
     date_vals: dict[date, float] = {}
     for day, value in totals:
         d = _to_date(day)

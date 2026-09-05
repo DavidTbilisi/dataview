@@ -1,4 +1,5 @@
 from dv.render.common import rule, simple_table
+from dv.render.json_out import emit, json_mode
 from dv.render.theme import console
 
 
@@ -37,6 +38,21 @@ def render_diff(
         ]
         if diffs:
             changed.append((k, diffs))
+
+    if json_mode():
+        emit("diff", {
+            "key": key,
+            "added":   [dict_b[k] for k in sorted(added_keys)],
+            "removed": [dict_a[k] for k in sorted(removed_keys)],
+            "changed": [
+                {key: k, "fields": [
+                    {"field": col, "before": before, "after": after}
+                    for col, before, after in diffs
+                ]}
+                for k, diffs in changed
+            ],
+        })
+        return
 
     _title = title or "DIFF"
     console.print()

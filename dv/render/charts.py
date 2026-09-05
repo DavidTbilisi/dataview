@@ -1,6 +1,7 @@
 from rich.text import Text
 from dv.core.stats import ScatterGrid
 from dv.render.common import rule
+from dv.render.json_out import emit, json_mode
 from dv.render.theme import charset, console
 
 
@@ -20,6 +21,10 @@ def render_bar(
     width: int | None = None,
     sort: bool = False,
 ) -> None:
+    if json_mode():
+        emit("bars", [{"label": str(k), "value": v} for k, v in rows])
+        return
+
     if not rows:
         console.print("[dim]No data[/dim]")
         return
@@ -71,6 +76,12 @@ def render_scatter(
     Points arrive binned at a resolution finer than any terminal, so folding
     them onto the character grid here moves nothing by more than a cell.
     """
+    if json_mode():
+        emit("points", [] if grid_data is None else [
+            {"x": x, "y": y, "count": n} for x, y, n in grid_data.points
+        ])
+        return
+
     if grid_data is None or not grid_data.points:
         console.print("[dim]No data[/dim]")
         return
@@ -163,6 +174,15 @@ def render_composition(
     title: str = "",
     width: int | None = None,
 ) -> None:
+    if json_mode():
+        total = sum(v for _, v in rows)
+        emit("composition", [
+            {"label": str(k), "value": v,
+             "pct": (v / total * 100) if total else 0.0}
+            for k, v in rows
+        ])
+        return
+
     if not rows:
         console.print("[dim]No data[/dim]")
         return
@@ -196,6 +216,10 @@ def render_composition(
 
 def render_sparkline(values: list[float], title: str = "") -> None:
     """Draw one glyph per value. See `core.stats.spark_series` for the sampling."""
+    if json_mode():
+        emit("series", values)
+        return
+
     if not values:
         console.print("[dim]No data[/dim]")
         return

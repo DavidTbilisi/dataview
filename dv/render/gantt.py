@@ -2,6 +2,7 @@ from datetime import date
 
 from rich.text import Text
 from dv.render.common import rule
+from dv.render.json_out import emit, json_mode
 from dv.render.theme import charset, console
 
 
@@ -91,6 +92,10 @@ def render_gantt(
     width: int = 40,
     title: str = "GANTT",
 ) -> None:
+    if json_mode():
+        emit("rows", rows)
+        return
+
     if not rows:
         console.print("[dim]No data[/dim]")
         return
@@ -116,7 +121,12 @@ def render_gantt(
     console.print()
     console.print(rule(f"[bold]{title}[/bold]", style="dim", align="left"))
     console.print()
-    console.print(f"  [dim]Range: {range_start} {charset().arrow} {range_end}[/dim]")
+    # highlight=False, or the highlighter shreds each date into cyan
+    # year / month / day fragments (see dv/render/table.py).
+    console.print(
+        f"  [dim]Range: {range_start} {charset().arrow} {range_end}[/dim]",
+        highlight=False,
+    )
     console.print()
 
     label_w  = max(len(lbl) for _, lbl, *_ in parsed)

@@ -38,11 +38,35 @@ Global flags:
 ```bash
 --unicode          draw charts with Unicode block glyphs
 --ascii            plain ASCII (the default)
+--json             emit the command's data as JSON instead of drawing it
 --where, -w <sql>  filter the rows every command sees
 --table <name>     pick a table inside a multi-table SQLite/DuckDB file
 ```
 
 Global flags go before the input file: `dv --unicode expenses.csv bar category`.
+Putting one after it is an error that tells you so.
+
+### JSON output
+
+`--json` makes every command that renders data emit that data instead of
+drawing it, so `dv` composes with `jq` and friends:
+
+```bash
+dv --json examples/expenses.csv group-by category --sum amount | jq '.[0].total'
+dv --json examples/books.csv schema | jq -r '.columns[] | select(.missing > 0) | .name'
+dv --json examples/money.csv money-summary | jq -r '"saved \(.saved) at \(.savings_rate|round)%"'
+dv --json examples/expenses.csv bar category | jq -r '.[] | [.label, .value] | @csv'
+```
+
+What you get is the data behind the picture, never the picture: `bar` gives
+labels and values, `hist` gives bin edges and counts, `box` gives the five
+numbers, `streak` gives the streak rather than the rows it was computed from.
+
+stdout carries the JSON document and nothing else - warnings, errors and the
+row-cap notice all go to stderr, so a pipeline stays clean. Commands that
+produce several sections (`report`) return an object keyed by section name;
+everything else returns its rows or its object directly. The two exporters
+write a file rather than a stream, so they have no JSON form.
 
 ### Filtering
 

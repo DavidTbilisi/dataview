@@ -1,3 +1,4 @@
+from dv.render.json_out import emit, json_mode
 from dv.render.theme import charset, console
 
 
@@ -9,6 +10,10 @@ def _guides() -> tuple[str, str, str, str]:
 
 
 def render_tree(rows: list[dict], path_cols: list[str], root_label: str = "Root") -> None:
+    if json_mode():
+        emit("rows", rows)
+        return
+
     if not rows:
         console.print("[dim]No data[/dim]")
         return

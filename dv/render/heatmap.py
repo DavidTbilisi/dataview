@@ -1,4 +1,5 @@
 from dv.render.common import ramp
+from dv.render.json_out import emit, json_mode
 from dv.render.theme import charset, console
 
 
@@ -8,6 +9,10 @@ def render_heatmap(
     title: str = "",
 ) -> None:
     """Draw pre-counted (row, column, count) cells. See `core.stats.cross_counts`."""
+    if json_mode():
+        emit("cells", [{"row": r, "column": c, "count": n} for r, c, n in cells])
+        return
+
     if not cells:
         console.print("[dim]No data[/dim]")
         return

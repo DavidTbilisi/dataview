@@ -1,7 +1,8 @@
 
 from dv.core.datasource import ResultView
 from dv.render.common import rule, simple_table
-from dv.render.theme import charset, console, overflow_mode
+from dv.render.json_out import emit, json_mode
+from dv.render.theme import charset, console, err_console, overflow_mode
 
 
 def _fmt(value) -> str:
@@ -17,6 +18,13 @@ def render_pivot(
     title: str = "",
     is_float: bool = True,
 ) -> None:
+    if json_mode():
+        emit("rows", [
+            {row_label: r["_row"], "column": r["_col"], "value": r["_val"]}
+            for r in rows
+        ])
+        return
+
     pivot: dict[str, dict[str, float]] = {}
     row_order: list[str] = []
 
@@ -67,6 +75,20 @@ def render_table(
     row_num: bool = False,
     truncate: int | None = None,
 ) -> None:
+    if json_mode():
+        emit("rows", result.rows)
+        meta = result.metadata
+        if meta.get("truncated"):
+            # The cap still applies, but a script must not be told quietly that
+            # it received everything.
+            total = meta.get("total")
+            of = f" of {total:,}" if total is not None else ""
+            err_console.print(
+                f"[yellow]Warning:[/yellow] emitted {meta['shown']:,}{of} rows "
+                f"- raise with --limit, or --all"
+            )
+        return
+
     if title:
         console.print()
         console.print(rule(f"[bold]{title}[/bold]", style="dim", align="left"))
@@ -93,9 +115,13 @@ def render_table(
     if meta.get("truncated"):
         total = meta.get("total")
         of = f" of {total:,}" if total is not None else ""
+        # highlight=False: this is a prose hint, not data. Rich's
+        # highlighter would paint the counts cyan *inside* the dim span,
+        # which reads as an accident rather than emphasis.
         console.print(
             f"  [dim]showing {meta['shown']:,}{of} rows "
-            f"{charset().emdash} raise with --limit, or --all[/dim]"
+            f"{charset().emdash} raise with --limit, or --all[/dim]",
+            highlight=False,
         )
     console.print()
 
@@ -106,6 +132,19 @@ def render_top(
     value_name: str,
     title: str = "",
 ) -> None:
+    if json_mode():
+        total = sum(float(r["total"]) for r in rows if r.get("total") is not None)
+        emit("rows", [
+            {
+                "rank": i + 1,
+                column_name: r[column_name],
+                value_name: float(r["total"] or 0),
+                "share": (float(r["total"] or 0) / total * 100) if total else 0.0,
+            }
+            for i, r in enumerate(rows)
+        ])
+        return
+
     if not rows:
         console.print("[dim]No data[/dim]")
         return

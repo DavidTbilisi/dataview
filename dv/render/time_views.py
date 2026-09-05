@@ -2,6 +2,7 @@ from datetime import date, datetime, timedelta
 
 from rich.text import Text
 from dv.render.common import rule, simple_table
+from dv.render.json_out import emit, json_mode
 from dv.render.theme import charset, console
 
 
@@ -27,6 +28,10 @@ def render_time_summary(
     rows: list[dict],
     date_col: str,
 ) -> None:
+    if json_mode():
+        emit("rows", rows)
+        return
+
     from dv.render.charts import render_bar
 
     dates = [d for r in rows if (d := _to_date(r.get(date_col))) is not None]
@@ -112,6 +117,15 @@ def render_streak(
 
     consistency = len(unique) / total_days * 100 if total_days else 0
 
+    if json_mode():
+        emit("streak", {
+            "current": curr, "best": best,
+            "active_days": len(unique), "span_days": total_days,
+            "consistency": consistency,
+            "first": min_d.isoformat(), "last": max_d.isoformat(),
+        })
+        return
+
     console.print()
     console.print(rule(f"[bold]{title}[/bold]", style="dim", align="left"))
     console.print()
@@ -157,6 +171,10 @@ def render_gaps(
     date_col: str,
     title: str = "GAPS",
 ) -> None:
+    if json_mode():
+        emit("rows", rows)
+        return
+
     dates = [d for r in rows if (d := _to_date(r.get(date_col))) is not None]
     if len(dates) < 2:
         console.print("[dim]Not enough data[/dim]")
@@ -203,6 +221,10 @@ def render_weekmap(
     title: str = "WEEKMAP",
 ) -> None:
     """Week × weekday grid. Rows = calendar weeks, cols = Mon–Sun."""
+    if json_mode():
+        emit("rows", rows)
+        return
+
     date_vals: dict[date, float] = {}
     for r in rows:
         d = _to_date(r.get(date_col))
@@ -268,6 +290,10 @@ def render_rolling(
     title: str = "",
 ) -> None:
     """Show values with rolling average column."""
+    if json_mode():
+        emit("items", [{"period": k, "value": v} for k, v in items])
+        return
+
     if not items:
         console.print("[dim]No data[/dim]")
         return
@@ -307,6 +333,10 @@ def render_cumulative(
     title: str = "",
 ) -> None:
     """Show values with cumulative running total and progress bar."""
+    if json_mode():
+        emit("items", [{"period": k, "value": v} for k, v in items])
+        return
+
     if not items:
         console.print("[dim]No data[/dim]")
         return
@@ -411,6 +441,16 @@ def render_before_after(
     b = _stats(before_rows)
     a = _stats(after_rows)
 
+    if json_mode():
+        emit("before_after", {
+            "cutoff": cutoff_str, "column": value_col,
+            "before": b, "after": a,
+            "change": {
+                k: (a[k] - b[k]) for k in ("count", "total", "avg", "max")
+            },
+        })
+        return
+
     console.print()
     console.print(rule(f"[bold]{title}[/bold]", style="dim", align="left"))
     console.print()
@@ -451,6 +491,10 @@ def render_compare_periods(
     value_col: str,
     title: str = "",
 ) -> None:
+    if json_mode():
+        emit("rows", rows)
+        return
+
     if not rows:
         console.print("[dim]No data[/dim]")
         return
@@ -491,6 +535,10 @@ def render_countdown(
     today: date | None = None,
     title: str = "DEADLINES",
 ) -> None:
+    if json_mode():
+        emit("rows", rows)
+        return
+
     if today is None:
         today = date.today()
 
@@ -572,6 +620,10 @@ def render_sessions(
     title: str = "SESSION TIMELINE",
 ) -> None:
     """Multi-day intraday session timeline. start/end should be datetimes or HH:MM times."""
+    if json_mode():
+        emit("rows", rows)
+        return
+
     groups: dict[date, list[tuple[float, float, str]]] = {}
     for r in rows:
         s = _parse_dt_hr(r.get(start_col))

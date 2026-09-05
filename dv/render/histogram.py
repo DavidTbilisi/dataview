@@ -3,6 +3,7 @@ from rich.text import Text
 from dv.core.stats import Bin
 from dv.render.charts import _bar_text
 from dv.render.common import rule
+from dv.render.json_out import emit, json_mode
 from dv.render.theme import charset, console
 
 
@@ -12,11 +13,16 @@ def render_histogram(
     width: int | None = None,
 ) -> None:
     """Draw pre-computed buckets. See `core.stats.numeric_bins` for the maths."""
+    if json_mode():
+        emit("bins", [{"lo": b.lo, "hi": b.hi, "count": b.count} for b in bins])
+        return
+
     if not bins:
         console.print("[dim]No data[/dim]")
         return
     if len(bins) == 1 and bins[0].lo == bins[0].hi:
-        console.print(f"[dim]All values are {bins[0].lo:g}[/dim]")
+        console.print(f"[dim]All values are {bins[0].lo:g}[/dim]",
+                      highlight=False)
         return
 
     bucket_counts = [b.count for b in bins]

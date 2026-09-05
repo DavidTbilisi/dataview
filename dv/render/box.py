@@ -1,6 +1,7 @@
 from rich.text import Text
 from dv.core.stats import BoxStats
 from dv.render.common import kv_pairs, rule
+from dv.render.json_out import emit, json_mode
 from dv.render.theme import charset, console
 
 
@@ -10,6 +11,13 @@ def render_box(
     width: int = 60,
 ) -> None:
     """Draw a five-number summary. See `core.stats.box_stats` for the maths."""
+    if json_mode():
+        emit("box", None if stats is None else {
+            "count": stats.count, "min": stats.min, "q1": stats.q1,
+            "median": stats.median, "q3": stats.q3, "max": stats.max,
+        })
+        return
+
     if stats is None:
         console.print("[dim]Not enough data for box plot[/dim]")
         return

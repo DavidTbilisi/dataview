@@ -4,6 +4,7 @@ from pathlib import Path
 from dv.core.schema import SchemaInfo
 from dv.core.stats import SummaryStats
 from dv.render.common import simple_table_heavy, rule
+from dv.render.json_out import emit, json_mode
 from dv.render.theme import charset, console
 
 
@@ -24,6 +25,19 @@ def _type_tag(t: str) -> str:
 
 
 def render_schema(schema: SchemaInfo) -> None:
+    if json_mode():
+        emit("schema", {
+            "path": schema.path,
+            "format": schema.format,
+            "rows": schema.row_count,
+            "columns": [
+                {"name": c.name, "type": c.inferred_type, "sql_type": c.duck_type,
+                 "missing": c.missing, "unique": c.unique, "example": c.example}
+                for c in schema.columns
+            ],
+        })
+        return
+
     name = Path(schema.path).name
     console.print()
     console.print(rule(f"[bold cyan]schema[/bold cyan]  [dim]{name}[/dim]", style="dim", align="left"))
@@ -58,6 +72,26 @@ def render_schema(schema: SchemaInfo) -> None:
 
 
 def render_summary(stats: SummaryStats) -> None:
+    if json_mode():
+        emit("summary", {
+            "path": stats.path,
+            "format": stats.format,
+            "rows": stats.row_count,
+            "columns": stats.col_count,
+            "numeric_columns": stats.numeric_cols,
+            "text_columns": stats.text_cols,
+            "date_columns": stats.date_cols,
+            "missing_total": stats.missing_total,
+            "duplicate_rows": stats.duplicate_count,
+            "date_range": list(stats.date_range) if stats.date_range else None,
+            "numeric": [
+                {"column": n.column, "count": n.count, "min": n.min, "max": n.max,
+                 "mean": n.mean, "median": n.median, "std": n.std}
+                for n in stats.numeric_stats
+            ],
+        })
+        return
+
     name = Path(stats.path).name
     console.print()
     console.print(rule(f"[bold cyan]summary[/bold cyan]  [dim]{name}[/dim]", style="dim", align="left"))
@@ -85,6 +119,15 @@ def render_summary(stats: SummaryStats) -> None:
 
 
 def render_missing(schema: SchemaInfo) -> None:
+    if json_mode():
+        rows = schema.row_count or 1
+        emit("missing", [
+            {"column": c.name, "missing": c.missing,
+             "pct": c.missing / rows * 100}
+            for c in schema.columns
+        ])
+        return
+
     from dv.render.charts import _bar_text
 
     name = Path(schema.path).name
@@ -144,6 +187,14 @@ def _numeric_table(stats: SummaryStats) -> None:
 
 
 def render_describe(stats: SummaryStats) -> None:
+    if json_mode():
+        emit("numeric", [
+            {"column": n.column, "count": n.count, "min": n.min, "max": n.max,
+             "mean": n.mean, "median": n.median, "std": n.std}
+            for n in stats.numeric_stats
+        ])
+        return
+
     """Numeric column statistics only — the NUMERIC SUMMARY view."""
     name = Path(stats.path).name
     console.print()

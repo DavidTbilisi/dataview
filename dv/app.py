@@ -15,6 +15,7 @@ from dv.core.detect import make_datasource
 from dv.core.errors import DvError
 from dv.core.query import require_columns, require_numeric
 from dv.core.sql import ident
+from dv.render.json_out import set_json
 from dv.render.theme import console, set_charset, set_date_format
 
 app = typer.Typer(
@@ -102,6 +103,10 @@ def main(
         "--where", "-w",
         help="SQL condition every command sees, e.g. --where \"amount > 100\".",
     )] = None,
+    json_: Annotated[bool, typer.Option(
+        "--json",
+        help="Emit the command's data as JSON instead of drawing it.",
+    )] = False,
 ):
     """dv <file> <command> [options]"""
     global _file, _table, _where, _config, _source
@@ -116,6 +121,7 @@ def main(
         _config.unicode = unicode_
     set_charset(_config.unicode)
     set_date_format(_config.date_format)
+    set_json(json_)
 
     if file is not None:
         _file = file

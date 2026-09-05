@@ -1,5 +1,6 @@
 from rich.text import Text
 from dv.render.common import bar, gauge, rule, simple_table
+from dv.render.json_out import emit, json_mode
 from dv.render.theme import charset, console
 
 
@@ -19,6 +20,10 @@ def render_money_summary(
     date_range: tuple[str, str] | None = None,
     accounts: list[str] | None = None,
 ) -> None:
+    if json_mode():
+        emit("money", {"income": income, "expense": expense, "saved": income - expense, "savings_rate": (income - expense) / income * 100 if income > 0 else 0.0, "transactions": tx_count, "avg_expense": avg_expense, "max_expense": max_expense, "date_range": list(date_range) if date_range else None, "accounts": accounts or []})
+        return
+
     saved        = income - expense
     savings_rate = saved / income * 100 if income > 0 else 0.0
     cashflow_style = "green" if saved > 0 else ("dim" if saved == 0 else "red")
@@ -63,6 +68,10 @@ def render_expenses_by(
     items: list[tuple[str, float]],
     title: str = "EXPENSES BY CATEGORY",
 ) -> None:
+    if json_mode():
+        emit("items", [{"label": k, "value": v} for k, v in items])
+        return
+
     if not items:
         console.print("[dim]No data[/dim]")
         return
@@ -96,6 +105,10 @@ def render_income_expense(
     title: str = "INCOME VS EXPENSE",
 ) -> None:
     """rows: [{"period": ..., "income": ..., "expense": ...}]"""
+    if json_mode():
+        emit("rows", rows)
+        return
+
     if not rows:
         console.print("[dim]No data[/dim]")
         return
@@ -146,6 +159,10 @@ def render_budget(
     title: str = "BUDGET VS ACTUAL",
 ) -> None:
     """items: [(category, actual_amount)]"""
+    if json_mode():
+        emit("budget", [{"category": k, "actual": v, "budget": budget_dict.get(k), "remaining": (budget_dict.get(k) - v) if budget_dict.get(k) is not None else None} for k, v in items])
+        return
+
     if not items and not budget_dict:
         console.print("[dim]No data[/dim]")
         return
@@ -214,6 +231,15 @@ def render_burn_rate(
     projected    = daily_actual * days_total
     pace         = daily_actual / daily_budget if daily_budget else 0.0
 
+    if json_mode():
+        emit("burn_rate", {
+            "month": month_label or None, "spent": spent, "budget": budget,
+            "remaining": remaining, "days_passed": days_passed,
+            "days_total": days_total, "daily_budget": daily_budget,
+            "daily_actual": daily_actual, "projected": projected, "pace": pace,
+        })
+        return
+
     title = f"BURN RATE{': ' + month_label if month_label else ''}"
     console.print()
     console.print(rule(f"[bold]{title}[/bold]", style="dim", align="left"))
@@ -262,6 +288,10 @@ def render_savings_rate(
     title: str = "SAVINGS RATE",
 ) -> None:
     """rows: [{"period": ..., "income": ..., "expense": ...}]"""
+    if json_mode():
+        emit("rows", rows)
+        return
+
     if not rows:
         console.print("[dim]No data[/dim]")
         return
@@ -311,6 +341,10 @@ def render_subscriptions(
     title: str = "SUBSCRIPTIONS",
 ) -> None:
     """items: [{"name": ..., "amount": ..., "months": ..., "count": ...}]"""
+    if json_mode():
+        emit("subscriptions", items)
+        return
+
     if not items:
         console.print("[dim]No recurring payments detected[/dim]")
         return
@@ -350,6 +384,10 @@ def render_money_report(
     budget_dict: dict[str, float] | None = None,
     month_label: str = "",
 ) -> None:
+    if json_mode():
+        emit("money_report", {"income": income, "expense": expense, "saved": income - expense, "date_range": list(date_range) if date_range else None, "by_category": [{"label": k, "value": v} for k, v in expense_by_cat], "largest": largest, "budget": budget_dict or {}, "month": month_label or None})
+        return
+
     title = f"MONEY REPORT{': ' + month_label if month_label else ''}"
     console.print()
     console.print(rule(f"[bold]{title}[/bold]", style="dim", align="left"))
@@ -453,6 +491,10 @@ def render_drill(
     title: str = "",
 ) -> None:
     """Category drilldown: stats + subcategory bars + largest transactions."""
+    if json_mode():
+        emit("drill", {"category": category, "total": total, "transactions": tx_count, "average": avg, "subcategories": [{"label": k, "value": v} for k, v in subcats], "largest": largest})
+        return
+
     title = title or f"CATEGORY: {category}"
     console.print()
     console.print(rule(f"[bold]{title}[/bold]", style="dim", align="left"))
@@ -495,6 +537,10 @@ def render_spend_by_weekday(
     title: str = "SPENDING BY WEEKDAY",
 ) -> None:
     """Bar chart of total or average spend per weekday."""
+    if json_mode():
+        emit("items", [{"weekday": k, "value": v} for k, v in items])
+        return
+
     if not items:
         console.print("[dim]No data[/dim]")
         return
@@ -528,6 +574,15 @@ def render_remaining(
     days_left   = days_total - days_passed
     safe_daily  = remaining / days_left if days_left > 0 else 0.0
     pct_spent   = spent / budget if budget else 0.0
+
+    if json_mode():
+        emit("remaining", {
+            "month": month_label or None, "spent": spent, "budget": budget,
+            "remaining": remaining, "days_passed": days_passed,
+            "days_left": days_left, "safe_daily": safe_daily,
+            "pct_spent": pct_spent * 100,
+        })
+        return
 
     title = f"REMAINING BUDGET{': ' + month_label if month_label else ''}"
     console.print()
@@ -563,6 +618,10 @@ def render_note_analysis(
     title: str = "MERCHANT ANALYSIS",
 ) -> None:
     """Group by note/merchant: count, total, avg."""
+    if json_mode():
+        emit("rows", items)
+        return
+
     if not items:
         console.print("[dim]No data[/dim]")
         return
@@ -597,6 +656,10 @@ def render_forecast(
     title: str = "CASHFLOW FORECAST",
 ) -> None:
     """historical + projected rows, each: {period, income, expense}."""
+    if json_mode():
+        emit("forecast", {"historical": historical, "projected": projected})
+        return
+
     if not projected:
         console.print("[dim]No data[/dim]")
         return
@@ -644,6 +707,10 @@ def render_fixed_variable(
     title: str = "FIXED VS VARIABLE",
 ) -> None:
     """fixed/variable_items: [(category, avg_monthly, cv)] where cv = stddev/mean."""
+    if json_mode():
+        emit("categories", [{"category": c, "monthly_avg": a, "variation": v, "kind": "fixed"} for c, a, v in fixed_items] + [{"category": c, "monthly_avg": a, "variation": v, "kind": "variable"} for c, a, v in variable_items])
+        return
+
     console.print()
     console.print(rule(f"[bold]{title}[/bold]", style="dim", align="left"))
     console.print()
